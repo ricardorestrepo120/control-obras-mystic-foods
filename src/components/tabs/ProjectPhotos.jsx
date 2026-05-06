@@ -5,6 +5,7 @@ import { I } from '../icons/index.jsx';
 import { col, fx, relTime } from '../../lib/utils.js';
 import { MAX_PHOTO_SIDE, PHOTO_QUALITY } from '../../lib/dataModel.js';
 
+// build: 2026-05-06
 function compressImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image(), url = URL.createObjectURL(file);
