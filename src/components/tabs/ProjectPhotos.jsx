@@ -50,7 +50,6 @@ export default function ProjectPhotos({ draft, setDraft, onSaveNow }) {
       setDraft(d => {
         const updated = { ...d, photos: [...(d.photos ?? []), ...newPhotos] };
         console.log("[photos] draft actualizado, total fotos:", updated.photos.length);
-        setTimeout(() => { console.log("[photos] llamando onSaveNow"); onSaveNow(); }, 0);
         return updated;
       });
     } catch (e) {
@@ -66,7 +65,6 @@ export default function ProjectPhotos({ draft, setDraft, onSaveNow }) {
     setDraft(d => {
       const nextPhotos = (d.photos ?? []).filter(p => p.id !== id);
       setLightbox(lb => lb === null ? null : nextPhotos.length === 0 ? null : Math.min(lb, nextPhotos.length - 1));
-      setTimeout(() => onSaveNow(), 0);
       return { ...d, photos: nextPhotos };
     });
   };
