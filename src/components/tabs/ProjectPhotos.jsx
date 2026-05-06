@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Empty from '../ui/Empty.jsx';
 import IconBtn from '../ui/IconBtn.jsx';
 import { I } from '../icons/index.jsx';
@@ -22,7 +22,6 @@ function compressImage(file) {
 }
 
 export default function ProjectPhotos({ draft, setDraft, onSaveNow }) {
-  const fileRef = useRef();
   const photos = draft.photos ?? [];
   const [lightbox, setLightbox] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -88,19 +87,20 @@ export default function ProjectPhotos({ draft, setDraft, onSaveNow }) {
 
   return (
     <div className="fu" style={col({ gap: 14 })}>
-      <input ref={fileRef} type="file" multiple accept="image/*" style={{ display: "none" }} onChange={e => { console.log("[photos] onChange disparado, files:", e.target.files?.length); upload(e.target.files); e.target.value = ""; }} />
-      <div
-        onClick={() => { console.log("[photos] click en zona upload, uploading:", uploading, "fileRef:", !!fileRef.current); !uploading && fileRef.current?.click(); }}
+      <label
+        htmlFor="photo-upload-input"
+        onClick={e => { console.log("[photos] click label, uploading:", uploading); if (uploading) e.preventDefault(); }}
         onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--accent)"; }}
         onDragLeave={e => e.currentTarget.style.borderColor = "var(--bd-strong)"}
         onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--bd-strong)"; console.log("[photos] onDrop, files:", e.dataTransfer.files?.length); upload(e.dataTransfer.files); }}
-        style={{ padding: "28px 20px", textAlign: "center", cursor: uploading ? "wait" : "pointer", background: "var(--bg-elev)", border: "1.5px dashed var(--bd-strong)", borderRadius: 12, transition: "border-color .15s", opacity: uploading ? .7 : 1 }}>
+        style={{ display: "block", padding: "28px 20px", textAlign: "center", cursor: uploading ? "wait" : "pointer", background: "var(--bg-elev)", border: "1.5px dashed var(--bd-strong)", borderRadius: 12, transition: "border-color .15s", opacity: uploading ? .7 : 1 }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--bg-soft)", color: "var(--tx-2)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
           {uploading ? <span style={{ fontSize: 13, fontWeight: 600, color: "var(--tx-3)" }}>…</span> : <I.Camera size={18} />}
         </div>
         <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tx)", marginBottom: 2 }}>{uploading ? "Procesando fotos…" : "Subir fotos"}</div>
         <div style={{ fontSize: 12, color: "var(--tx-3)" }}>{uploading ? "Un momento…" : "Arrastra imágenes o haz clic · JPG, PNG, WEBP"}</div>
-      </div>
+        <input id="photo-upload-input" type="file" multiple accept="image/*" style={{ display: "none" }} onChange={e => { console.log("[photos] onChange disparado, files:", e.target.files?.length); upload(e.target.files); e.target.value = ""; }} />
+      </label>
       {sizeWarn && <div style={{ background: "var(--warn-bg)", color: "var(--warn)", borderRadius: 8, padding: "10px 14px", fontSize: 12, fontWeight: 500 }}>⚠ {sizeWarn}</div>}
       {photos.length === 0
         ? <Empty icon={<I.Camera size={20} />} title="Sin fotos" hint="Sube fotos de avance de la obra" />
