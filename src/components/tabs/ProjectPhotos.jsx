@@ -34,20 +34,27 @@ export default function ProjectPhotos({ draft, setDraft, onSaveNow }) {
   }, []);
 
   const upload = async files => {
+    console.log("[photos] upload llamado, files:", files?.length, files);
     const valid = Array.from(files).filter(f => f.type.startsWith("image/"));
-    if (!valid.length) return;
+    console.log("[photos] archivos válidos:", valid.length, valid.map(f => `${f.name} (${f.type}, ${f.size}b)`));
+    if (!valid.length) { console.log("[photos] sin archivos válidos, abortando"); return; }
     setUploading(true); setSizeWarn("");
     try {
-      const newPhotos = await Promise.all(valid.map(async f => ({
-        id: newPhotoId(), name: f.name, data: await compressImage(f), uploadedAt: Date.now(), caption: "",
-      })));
+      const newPhotos = await Promise.all(valid.map(async f => {
+        console.log("[photos] comprimiendo:", f.name);
+        const data = await compressImage(f);
+        console.log("[photos] compresión ok:", f.name, "dataUrl length:", data?.length);
+        return { id: newPhotoId(), name: f.name, data, uploadedAt: Date.now(), caption: "" };
+      }));
+      console.log("[photos] todas comprimidas, guardando en draft:", newPhotos.length);
       setDraft(d => {
         const updated = { ...d, photos: [...(d.photos ?? []), ...newPhotos] };
-        setTimeout(() => onSaveNow(), 0);
+        console.log("[photos] draft actualizado, total fotos:", updated.photos.length);
+        setTimeout(() => { console.log("[photos] llamando onSaveNow"); onSaveNow(); }, 0);
         return updated;
       });
     } catch (e) {
-      console.error("upload error:", e);
+      console.error("[photos] upload error:", e);
       setSizeWarn("Error al procesar las fotos. Intenta de nuevo.");
       setTimeout(() => setSizeWarn(""), 4000);
     } finally {
@@ -82,17 +89,17 @@ export default function ProjectPhotos({ draft, setDraft, onSaveNow }) {
   return (
     <div className="fu" style={col({ gap: 14 })}>
       <div
-        onClick={() => !uploading && fileRef.current?.click()}
+        onClick={() => { console.log("[photos] click en zona upload, uploading:", uploading, "fileRef:", !!fileRef.current); !uploading && fileRef.current?.click(); }}
         onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--accent)"; }}
         onDragLeave={e => e.currentTarget.style.borderColor = "var(--bd-strong)"}
-        onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--bd-strong)"; upload(e.dataTransfer.files); }}
+        onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--bd-strong)"; console.log("[photos] onDrop, files:", e.dataTransfer.files?.length); upload(e.dataTransfer.files); }}
         style={{ padding: "28px 20px", textAlign: "center", cursor: uploading ? "wait" : "pointer", background: "var(--bg-elev)", border: "1.5px dashed var(--bd-strong)", borderRadius: 12, transition: "border-color .15s", opacity: uploading ? .7 : 1 }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--bg-soft)", color: "var(--tx-2)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
           {uploading ? <span style={{ fontSize: 13, fontWeight: 600, color: "var(--tx-3)" }}>…</span> : <I.Camera size={18} />}
         </div>
         <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tx)", marginBottom: 2 }}>{uploading ? "Procesando fotos…" : "Subir fotos"}</div>
         <div style={{ fontSize: 12, color: "var(--tx-3)" }}>{uploading ? "Un momento…" : "Arrastra imágenes o haz clic · JPG, PNG, WEBP"}</div>
-        <input ref={fileRef} type="file" multiple accept="image/*" style={{ display: "none" }} onClick={e => e.stopPropagation()} onChange={e => { upload(e.target.files); e.target.value = ""; }} />
+        <input ref={fileRef} type="file" multiple accept="image/*" style={{ display: "none" }} onClick={e => e.stopPropagation()} onChange={e => { console.log("[photos] onChange disparado, files:", e.target.files?.length); upload(e.target.files); e.target.value = ""; }} />
       </div>
       {sizeWarn && <div style={{ background: "var(--warn-bg)", color: "var(--warn)", borderRadius: 8, padding: "10px 14px", fontSize: 12, fontWeight: 500 }}>⚠ {sizeWarn}</div>}
       {photos.length === 0
