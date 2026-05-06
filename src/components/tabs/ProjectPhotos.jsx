@@ -88,6 +88,7 @@ export default function ProjectPhotos({ draft, setDraft, onSaveNow }) {
 
   return (
     <div className="fu" style={col({ gap: 14 })}>
+      <input ref={fileRef} type="file" multiple accept="image/*" style={{ display: "none" }} onChange={e => { console.log("[photos] onChange disparado, files:", e.target.files?.length); upload(e.target.files); e.target.value = ""; }} />
       <div
         onClick={() => { console.log("[photos] click en zona upload, uploading:", uploading, "fileRef:", !!fileRef.current); !uploading && fileRef.current?.click(); }}
         onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--accent)"; }}
@@ -99,7 +100,6 @@ export default function ProjectPhotos({ draft, setDraft, onSaveNow }) {
         </div>
         <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tx)", marginBottom: 2 }}>{uploading ? "Procesando fotos…" : "Subir fotos"}</div>
         <div style={{ fontSize: 12, color: "var(--tx-3)" }}>{uploading ? "Un momento…" : "Arrastra imágenes o haz clic · JPG, PNG, WEBP"}</div>
-        <input ref={fileRef} type="file" multiple accept="image/*" style={{ display: "none" }} onClick={e => e.stopPropagation()} onChange={e => { console.log("[photos] onChange disparado, files:", e.target.files?.length); upload(e.target.files); e.target.value = ""; }} />
       </div>
       {sizeWarn && <div style={{ background: "var(--warn-bg)", color: "var(--warn)", borderRadius: 8, padding: "10px 14px", fontSize: 12, fontWeight: 500 }}>⚠ {sizeWarn}</div>}
       {photos.length === 0
