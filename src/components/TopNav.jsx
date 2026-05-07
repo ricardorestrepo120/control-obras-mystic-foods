@@ -3,7 +3,7 @@ import BrandChip from './ui/BrandChip.jsx';
 import { I } from './icons/index.jsx';
 import { fx } from '../lib/utils.js';
 
-export default function TopNav({ onNew, onBack, project, isNew, onSave, onDelete, onShare, canSave, syncing, syncError }) {
+export default function TopNav({ onNew, onBack, project, isNew, onSave, onDelete, onShare, canSave, syncing, syncError, onLogout, userEmail }) {
   const sc = syncError ? "var(--danger)" : syncing ? "var(--warn)" : "var(--ok)";
   const sl = syncError ? "Sin conexión" : syncing ? "Guardando…" : "Sincronizado";
   return (
@@ -26,6 +26,7 @@ export default function TopNav({ onNew, onBack, project, isNew, onSave, onDelete
         )}
         <div style={{ flex: project ? "0" : "1" }} />
         <div title={sl} style={fx({ gap: 5 })}><span style={{ width: 7, height: 7, borderRadius: "50%", background: sc, flexShrink: 0 }} /></div>
+        {onLogout && <Btn variant="ghost" size="sm" icon={<I.LogOut size={14} />} onClick={onLogout} title={userEmail ?? "Cerrar sesión"}>Salir</Btn>}
         {!project && <Btn variant="primary" size="sm" icon={<I.Plus size={14} />} onClick={onNew}>Nueva obra</Btn>}
         {project && !isNew && onShare && <Btn variant="ghost" size="sm" icon={<I.Share size={14} />} onClick={onShare} title="Compartir" />}
         {project && !isNew && <Btn variant="ghost" size="sm" icon={<I.Trash size={14} />} onClick={onDelete} title="Eliminar" />}

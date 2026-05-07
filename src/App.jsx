@@ -3,32 +3,75 @@ import Dashboard from './components/Dashboard.jsx';
 import ProjectView from './components/ProjectView.jsx';
 import ShareModal from './components/ShareModal.jsx';
 import SharedView from './components/SharedView.jsx';
+import LoginView from './components/LoginView.jsx';
 import Modal from './components/ui/Modal.jsx';
 import Toast from './components/ui/Toast.jsx';
 import Btn from './components/ui/Btn.jsx';
 import { I } from './components/icons/index.jsx';
-import { db } from './lib/supabase.js';
+import { db, auth } from './lib/supabase.js';
 import { migrate, makeProject, readShareHash, fitPhotosToLimit } from './lib/dataModel.js';
 import { fx } from './lib/utils.js';
 
 export default function App() {
   const sharedProject = useMemo(() => readShareHash(), []);
 
-  const [projects,    setProjects]    = useState([]);
-  const [loaded,      setLoaded]      = useState(false);
-  const [syncing,     setSyncing]     = useState(true);
-  const [syncError,   setSyncError]   = useState(false);
-  const [route,       setRoute]       = useState({ view: "dash" });
-  const [draft,       setDraft]       = useState(null);
-  const [isNew,       setIsNew]       = useState(false);
-  const [filter,      setFilter]      = useState("all");
-  const [sortBy,      setSortBy]      = useState("createdAt");
-  const [query,       setQuery]       = useState("");
-  const [contactForm, setContactForm] = useState(null);
-  const [toast,       setToast]       = useState({ show: false, text: "" });
-  const [delModal,    setDelModal]    = useState(null);
-  const [shareOpen,   setShareOpen]   = useState(false);
+  const [authReady,    setAuthReady]    = useState(false);
+  const [session,      setSession]      = useState(null);
+  const [projects,     setProjects]     = useState([]);
+  const [loaded,       setLoaded]       = useState(false);
+  const [syncing,      setSyncing]      = useState(false);
+  const [syncError,    setSyncError]    = useState(false);
+  const [route,        setRoute]        = useState({ view: "dash" });
+  const [draft,        setDraft]        = useState(null);
+  const [isNew,        setIsNew]        = useState(false);
+  const [filter,       setFilter]       = useState("all");
+  const [sortBy,       setSortBy]       = useState("createdAt");
+  const [query,        setQuery]        = useState("");
+  const [contactForm,  setContactForm]  = useState(null);
+  const [toast,        setToast]        = useState({ show: false, text: "" });
+  const [delModal,     setDelModal]     = useState(null);
+  const [shareOpen,    setShareOpen]    = useState(false);
   const toastTimerRef = useRef(null);
+
+  const handleLogout = useCallback(async () => {
+    await auth.signOut();
+    setSession(null);
+    setLoaded(false);
+    setProjects([]);
+    setDraft(null);
+    setIsNew(false);
+    setRoute({ view: "dash" });
+    setDelModal(null);
+    setShareOpen(false);
+  }, []);
+
+  // Restore stored session on mount (skip for shared links)
+  useEffect(() => {
+    if (sharedProject) { setAuthReady(true); return; }
+    auth.restoreSession().then(s => { setSession(s); setAuthReady(true); });
+  }, []);
+
+  // Load projects once authenticated
+  useEffect(() => {
+    if (!session || loaded) return;
+    setSyncing(true);
+    db.loadAll()
+      .then(rows => { setProjects(rows.map(migrate)); setSyncError(false); })
+      .catch(err  => { console.error("Load failed:", err); setSyncError(true); })
+      .finally(()  => { setSyncing(false); setLoaded(true); });
+  }, [session]);
+
+  // Auto-refresh token 5 minutes before it expires
+  useEffect(() => {
+    if (!session?.expires_at) return;
+    const delay = Math.max(0, session.expires_at - Date.now() - 5 * 60_000);
+    const id = setTimeout(async () => {
+      const s = await auth.refresh(session.refresh_token);
+      if (s) setSession(s);
+      else handleLogout();
+    }, delay);
+    return () => clearTimeout(id);
+  }, [session?.expires_at, handleLogout]);
 
   useEffect(() => {
     if (sharedProject) return;
@@ -37,17 +80,9 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, [sharedProject]);
 
+  // Background polling every 30 s (only when authenticated and loaded)
   useEffect(() => {
-    if (sharedProject) return;
-    db.loadAll()
-      .then(rows => { setProjects(rows.map(migrate)); setSyncError(false); })
-      .catch(err  => { console.error("Load failed:", err); setSyncError(true); })
-      .finally(()  => { setSyncing(false); setLoaded(true); });
-  }, [sharedProject]);
-
-  // Background polling: every 30s merge server changes without touching the active draft
-  useEffect(() => {
-    if (!loaded || sharedProject) return;
+    if (!loaded || sharedProject || !session) return;
     const tick = async () => {
       try {
         const rows = await db.loadAll();
@@ -55,31 +90,31 @@ export default function App() {
         setProjects(prev => {
           const serverMap = new Map(fresh.map(fp => [fp.id, fp]));
           let changed = false;
-          // Update projects whose server version is newer than local
           const next = prev.map(cp => {
             const fp = serverMap.get(cp.id);
             if (fp && (!cp._srv || fp._srv > cp._srv)) { changed = true; return fp; }
             return cp;
           });
-          // Add projects that appeared on another device
           fresh.forEach(fp => {
             if (!prev.find(p => p.id === fp.id)) { changed = true; next.push(fp); }
           });
           return changed ? next : prev;
         });
       } catch {
-        // silently ignore — polling errors don't affect the user
+        // silently ignore
       }
     };
     const id = setInterval(tick, 30_000);
     return () => clearInterval(id);
-  }, [loaded, sharedProject]);
+  }, [loaded, sharedProject, session]);
 
   const showToast = useCallback(text => {
     setToast({ show: true, text });
     clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast({ show: false, text: "" }), 2500);
   }, []);
+
+  const handleLogin = useCallback(s => setSession(s), []);
 
   const upd = useCallback((field, val) => setDraft(d => ({ ...d, [field]: val })), []);
 
@@ -98,7 +133,6 @@ export default function App() {
   const save = useCallback(async (projectToSave) => {
     if (!projectToSave?.name?.trim()) return;
     const fittedPhotos = await fitPhotosToLimit(projectToSave.photos ?? []);
-    // _srv stamps when we saved — polling uses it to avoid overwriting with older server data
     const pToSave = { ...projectToSave, photos: fittedPhotos, _srv: new Date().toISOString() };
     setProjects(prev => prev.find(x => x.id === pToSave.id) ? prev.map(x => x.id === pToSave.id ? pToSave : x) : [...prev, pToSave]);
     setDraft(prev => ({ ...prev, photos: pToSave.photos }));
@@ -138,9 +172,12 @@ export default function App() {
       .finally(() => setSyncing(false));
   };
 
+  // --- Render ---
+
   if (sharedProject) return <SharedView project={sharedProject} />;
 
-  if (!loaded) return (
+  // Checking stored session or loading initial data
+  if (!authReady || (session && !loaded)) return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, color: "var(--tx-3)", fontSize: 14 }}>
       <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--accent)", color: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}><I.Logo size={18} /></div>
       {syncError
@@ -149,19 +186,25 @@ export default function App() {
     </div>
   );
 
+  if (!session) return <LoginView onLogin={handleLogin} />;
+
+  const userEmail = session.user?.email;
+
   return (
     <div>
       {route.view === "dash" && (
         <Dashboard projects={projects} onOpen={openProject} onNew={newProject}
           filter={filter} setFilter={setFilter} sortBy={sortBy} setSortBy={setSortBy}
-          query={query} setQuery={setQuery} syncing={syncing} syncError={syncError} />
+          query={query} setQuery={setQuery} syncing={syncing} syncError={syncError}
+          onLogout={handleLogout} userEmail={userEmail} />
       )}
       {route.view === "proj" && draft && (
         <ProjectView draft={draft} isNew={isNew} upd={upd} setDraft={setDraft}
           onBack={() => setRoute({ view: "dash" })} onSave={save}
           onDelete={() => setDelModal({ step: 1 })} onShare={() => setShareOpen(true)}
           contactForm={contactForm} setContactForm={setContactForm} saveContact={saveContact}
-          syncing={syncing} syncError={syncError} />
+          syncing={syncing} syncError={syncError}
+          onLogout={handleLogout} userEmail={userEmail} />
       )}
       {shareOpen && draft && <ShareModal project={draft} onClose={() => setShareOpen(false)} />}
       {delModal && (

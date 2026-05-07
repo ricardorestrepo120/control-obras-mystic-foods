@@ -32,7 +32,7 @@ function TabBar({ tabs, active, onSelect }) {
   );
 }
 
-export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSave, onDelete, onShare, contactForm, setContactForm, saveContact, syncing, syncError }) {
+export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSave, onDelete, onShare, contactForm, setContactForm, saveContact, syncing, syncError, onLogout, userEmail }) {
   const [tab, setTab] = useState("info");
   const timerRef = useRef(null);
   const draftRef = useRef(draft);
@@ -68,7 +68,7 @@ export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSav
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      <TopNav project={draft} isNew={isNew} onBack={handleBack} onSave={() => onSave(draftRef.current)} onDelete={onDelete} onShare={onShare} canSave={!!draft.name?.trim()} syncing={syncing} syncError={syncError} />
+      <TopNav project={draft} isNew={isNew} onBack={handleBack} onSave={() => onSave(draftRef.current)} onDelete={onDelete} onShare={onShare} canSave={!!draft.name?.trim()} syncing={syncing} syncError={syncError} onLogout={onLogout} userEmail={userEmail} />
       <div style={{ maxWidth: 980, margin: "0 auto", padding: "16px var(--pp) 80px" }}>
         {!isNew && <TabBar tabs={TABS} active={tab} onSelect={handleTabChange} />}
         {(tab === "info"     || isNew) && <ProjectInfo     draft={draft} isNew={isNew} upd={upd} contactForm={contactForm} setContactForm={setContactForm} saveContact={saveContact} />}

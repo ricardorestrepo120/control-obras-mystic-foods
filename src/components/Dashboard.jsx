@@ -19,7 +19,7 @@ const SORT_OPTS = [
   { key: "brand",       label: "Marca"    },
 ];
 
-export default function Dashboard({ projects, onOpen, onNew, filter, setFilter, sortBy, setSortBy, query, setQuery, syncing, syncError }) {
+export default function Dashboard({ projects, onOpen, onNew, filter, setFilter, sortBy, setSortBy, query, setQuery, syncing, syncError, onLogout, userEmail }) {
   const list = useMemo(() => {
     let r = filter === "all" ? projects : projects.filter(p => p.brand === filter);
     if (query.trim()) { const q = query.toLowerCase(); r = r.filter(p => p.name.toLowerCase().includes(q) || p.localNumber?.toLowerCase().includes(q)); }
@@ -38,7 +38,7 @@ export default function Dashboard({ projects, onOpen, onNew, filter, setFilter, 
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      <TopNav onNew={onNew} syncing={syncing} syncError={syncError} />
+      <TopNav onNew={onNew} syncing={syncing} syncError={syncError} onLogout={onLogout} userEmail={userEmail} />
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "20px var(--pp) 80px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 10, marginBottom: 20 }}>
           {brandCards.map(b => {
