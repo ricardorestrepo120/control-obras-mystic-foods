@@ -45,6 +45,36 @@ export default function App() {
       .finally(()  => { setSyncing(false); setLoaded(true); });
   }, [sharedProject]);
 
+  // Background polling: every 30s merge server changes without touching the active draft
+  useEffect(() => {
+    if (!loaded || sharedProject) return;
+    const tick = async () => {
+      try {
+        const rows = await db.loadAll();
+        const fresh = rows.map(migrate);
+        setProjects(prev => {
+          const serverMap = new Map(fresh.map(fp => [fp.id, fp]));
+          let changed = false;
+          // Update projects whose server version is newer than local
+          const next = prev.map(cp => {
+            const fp = serverMap.get(cp.id);
+            if (fp && (!cp._srv || fp._srv > cp._srv)) { changed = true; return fp; }
+            return cp;
+          });
+          // Add projects that appeared on another device
+          fresh.forEach(fp => {
+            if (!prev.find(p => p.id === fp.id)) { changed = true; next.push(fp); }
+          });
+          return changed ? next : prev;
+        });
+      } catch {
+        // silently ignore — polling errors don't affect the user
+      }
+    };
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, [loaded, sharedProject]);
+
   const showToast = useCallback(text => {
     setToast({ show: true, text });
     clearTimeout(toastTimerRef.current);
@@ -68,7 +98,8 @@ export default function App() {
   const save = useCallback(async (projectToSave) => {
     if (!projectToSave?.name?.trim()) return;
     const fittedPhotos = await fitPhotosToLimit(projectToSave.photos ?? []);
-    const pToSave = { ...projectToSave, photos: fittedPhotos };
+    // _srv stamps when we saved — polling uses it to avoid overwriting with older server data
+    const pToSave = { ...projectToSave, photos: fittedPhotos, _srv: new Date().toISOString() };
     setProjects(prev => prev.find(x => x.id === pToSave.id) ? prev.map(x => x.id === pToSave.id ? pToSave : x) : [...prev, pToSave]);
     setDraft(prev => ({ ...prev, photos: pToSave.photos }));
     setIsNew(false);
