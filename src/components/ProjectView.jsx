@@ -49,7 +49,7 @@ export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSav
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => onSave(draftRef.current), 2000);
     return () => clearTimeout(timerRef.current);
-  }, [draftKey]);
+  }, [draftKey, onSave]);
 
   const handleTabChange = useCallback(nextTab => {
     if (!isNew && draftRef.current?.name?.trim()) {
@@ -65,9 +65,6 @@ export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSav
     onBack();
   };
 
-  const handleSaveNow = useCallback(() => {
-    if (draftRef.current?.name?.trim()) onSave(draftRef.current).catch(console.error);
-  }, [onSave]);
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -76,7 +73,7 @@ export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSav
         {!isNew && <TabBar tabs={TABS} active={tab} onSelect={handleTabChange} />}
         {(tab === "info"     || isNew) && <ProjectInfo     draft={draft} isNew={isNew} upd={upd} contactForm={contactForm} setContactForm={setContactForm} saveContact={saveContact} />}
         {!isNew && tab === "status"    && <ProjectStatus   draft={draft} upd={upd} setDraft={setDraft} />}
-        {!isNew && tab === "photos"    && <ProjectPhotos   draft={draft} setDraft={setDraft} onSaveNow={handleSaveNow} />}
+        {!isNew && tab === "photos"    && <ProjectPhotos   draft={draft} setDraft={setDraft} />}
         {!isNew && tab === "onedrive"  && <ProjectOneDrive draft={draft} upd={upd} />}
         {!isNew && tab === "notes"     && <ProjectNotes    draft={draft} upd={upd} />}
         {!isNew && tab === "apertura"  && <ProjectApertura draft={draft} upd={upd} setDraft={setDraft} />}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Dashboard from './components/Dashboard.jsx';
 import ProjectView from './components/ProjectView.jsx';
 import ShareModal from './components/ShareModal.jsx';
@@ -28,6 +28,7 @@ export default function App() {
   const [toast,       setToast]       = useState({ show: false, text: "" });
   const [delModal,    setDelModal]    = useState(null);
   const [shareOpen,   setShareOpen]   = useState(false);
+  const toastTimerRef = useRef(null);
 
   useEffect(() => {
     if (sharedProject) return;
@@ -46,7 +47,8 @@ export default function App() {
 
   const showToast = useCallback(text => {
     setToast({ show: true, text });
-    setTimeout(() => setToast({ show: false, text: "" }), 2500);
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast({ show: false, text: "" }), 2500);
   }, []);
 
   const upd = useCallback((field, val) => setDraft(d => ({ ...d, [field]: val })), []);
@@ -64,12 +66,11 @@ export default function App() {
   };
 
   const save = useCallback(async (projectToSave) => {
-    const p = projectToSave || draft;
-    if (!p?.name?.trim()) return;
-    const fittedPhotos = await fitPhotosToLimit(p.photos ?? []);
-    const pToSave = { ...p, photos: fittedPhotos };
-    setProjects(prev => prev.find(x => x.id === p.id) ? prev.map(x => x.id === p.id ? pToSave : x) : [...prev, pToSave]);
-    setDraft(pToSave);
+    if (!projectToSave?.name?.trim()) return;
+    const fittedPhotos = await fitPhotosToLimit(projectToSave.photos ?? []);
+    const pToSave = { ...projectToSave, photos: fittedPhotos };
+    setProjects(prev => prev.find(x => x.id === pToSave.id) ? prev.map(x => x.id === pToSave.id ? pToSave : x) : [...prev, pToSave]);
+    setDraft(prev => ({ ...prev, photos: pToSave.photos }));
     setIsNew(false);
     setSyncing(true);
     db.save(pToSave)
@@ -77,11 +78,11 @@ export default function App() {
       .catch(err => {
         setSyncError(true);
         showToast("Error al guardar — reintentando…");
-        setTimeout(() => db.save(p).catch(console.error), 4000);
+        setTimeout(() => db.save(pToSave).catch(console.error), 4000);
         console.error(err);
       })
       .finally(() => setSyncing(false));
-  }, [draft, showToast]);
+  }, [showToast]);
 
   const saveContact = c => {
     if (!c.name.trim()) return;

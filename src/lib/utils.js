@@ -33,7 +33,9 @@ export const relTime = t => {
   if (s < 3600) return `hace ${~~(s / 60)}m`;
   if (s < 86400) return `hace ${~~(s / 3600)}h`;
   const d = ~~(s / 86400);
-  return d < 30 ? `hace ${d}d` : `hace ${~~(d / 30)}mes`;
+  if (d < 30) return `hace ${d}d`;
+  const mo = ~~(d / 30);
+  return `hace ${mo} ${mo === 1 ? "mes" : "meses"}`;
 };
 
 export const pad2 = n => String(n).padStart(2, "0");

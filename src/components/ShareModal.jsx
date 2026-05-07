@@ -14,9 +14,13 @@ export default function ShareModal({ project, onClose }) {
 
   const copy = async () => {
     if (!url) return;
-    try { await navigator.clipboard.writeText(url); } catch {}
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard API unavailable or denied — do nothing
+    }
   };
 
   useEffect(() => {
@@ -48,7 +52,7 @@ export default function ShareModal({ project, onClose }) {
               </div>
             </>}
         <div style={fx({ gap: 8, marginTop: 18, justifyContent: "flex-end" })}>
-          {url && <Btn variant="ghost" icon={<I.Eye size={13} />} onClick={() => window.open(url, "_blank")}>Vista previa</Btn>}
+          {url && <Btn variant="ghost" icon={<I.Eye size={13} />} onClick={() => window.open(url, "_blank", "noopener,noreferrer")}>Vista previa</Btn>}
           <Btn variant="text" onClick={onClose}>Cerrar</Btn>
         </div>
       </div>

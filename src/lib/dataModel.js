@@ -17,10 +17,10 @@ export function calcProgress(p) {
   return Math.round(parts.reduce((a, p) => a + p.v * p.w, 0) / tw * 100);
 }
 
-export const addHistory = (proj, ev) => ({
-  ...proj,
-  history: [{ id: `h-${Date.now()}`, t: Date.now(), ...ev }, ...(proj.history ?? [])],
-});
+export const addHistory = (proj, ev) => {
+  const now = Date.now();
+  return { ...proj, history: [{ id: `h-${now}`, t: now, ...ev }, ...(proj.history ?? [])] };
+};
 
 export function recompressPhoto(dataUrl, maxSide, quality) {
   return new Promise((resolve, reject) => {
@@ -96,9 +96,7 @@ export const encodeShare = p => {
   try {
     const clean = { ...p, photos: (p.photos ?? []).map(ph => ({ ...ph, data: "" })) };
     const bytes = new TextEncoder().encode(JSON.stringify(clean));
-    let bin = "";
-    bytes.forEach(b => bin += String.fromCharCode(b));
-    return btoa(bin);
+    return btoa(Array.from(bytes, b => String.fromCharCode(b)).join(""));
   } catch (e) {
     console.error("encodeShare:", e);
     return null;

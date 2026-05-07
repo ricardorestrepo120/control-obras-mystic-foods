@@ -118,7 +118,9 @@ function TimelineMini({ start, end }) {
   const sd = parseLocalDate(start), ed = parseLocalDate(end);
   if (!sd || !ed) return null;
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const total = (ed - sd) / 86400000, elapsed = (today - sd) / 86400000;
+  const total = (ed - sd) / 86400000;
+  if (total <= 0) return null;
+  const elapsed = (today - sd) / 86400000;
   const pct = Math.min(100, Math.max(0, elapsed / total * 100));
   const overdue = today > ed, notStarted = today < sd;
   return (

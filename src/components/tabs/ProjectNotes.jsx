@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Card from '../ui/Card.jsx';
 import SecLabel from '../ui/SecLabel.jsx';
 import Pill from '../ui/Pill.jsx';
@@ -18,6 +18,7 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
   const [form, setForm] = useState({ text: "", rem: "", time: "", assignee: "" });
   const [filter, setFilter] = useState("all");
   const assignees = useMemo(() => [...new Set(list.map(x => x.assignee).filter(Boolean))].sort(), [list]);
+  useEffect(() => { if (filter !== "all" && !assignees.includes(filter)) setFilter("all"); }, [assignees, filter]);
   const filtered = filter === "all" ? list : list.filter(x => x.assignee === filter);
   const pending = filtered.filter(x => !x.done);
   const done    = filtered.filter(x => x.done);

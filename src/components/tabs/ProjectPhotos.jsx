@@ -5,7 +5,6 @@ import { I } from '../icons/index.jsx';
 import { col, fx, relTime } from '../../lib/utils.js';
 import { MAX_PHOTO_SIDE, PHOTO_QUALITY } from '../../lib/dataModel.js';
 
-// build: 2026-05-06
 function compressImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image(), url = URL.createObjectURL(file);
@@ -17,12 +16,12 @@ function compressImage(file) {
       c.getContext("2d").drawImage(img, 0, 0, w, h);
       resolve(c.toDataURL("image/jpeg", PHOTO_QUALITY));
     };
-    img.onerror = reject;
+    img.onerror = e => { URL.revokeObjectURL(url); reject(e); };
     img.src = url;
   });
 }
 
-export default function ProjectPhotos({ draft, setDraft, onSaveNow }) {
+export default function ProjectPhotos({ draft, setDraft }) {
   const photos = draft.photos ?? [];
   const [lightbox, setLightbox] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -34,24 +33,15 @@ export default function ProjectPhotos({ draft, setDraft, onSaveNow }) {
   }, []);
 
   const upload = async files => {
-    console.log("[photos] upload llamado, files:", files?.length, files);
     const valid = Array.from(files).filter(f => f.type.startsWith("image/"));
-    console.log("[photos] archivos válidos:", valid.length, valid.map(f => `${f.name} (${f.type}, ${f.size}b)`));
-    if (!valid.length) { console.log("[photos] sin archivos válidos, abortando"); return; }
+    if (!valid.length) return;
     setUploading(true); setSizeWarn("");
     try {
       const newPhotos = await Promise.all(valid.map(async f => {
-        console.log("[photos] comprimiendo:", f.name);
         const data = await compressImage(f);
-        console.log("[photos] compresión ok:", f.name, "dataUrl length:", data?.length);
         return { id: newPhotoId(), name: f.name, data, uploadedAt: Date.now(), caption: "" };
       }));
-      console.log("[photos] todas comprimidas, guardando en draft:", newPhotos.length);
-      setDraft(d => {
-        const updated = { ...d, photos: [...(d.photos ?? []), ...newPhotos] };
-        console.log("[photos] draft actualizado, total fotos:", updated.photos.length);
-        return updated;
-      });
+      setDraft(d => ({ ...d, photos: [...(d.photos ?? []), ...newPhotos] }));
     } catch (e) {
       console.error("[photos] upload error:", e);
       setSizeWarn("Error al procesar las fotos. Intenta de nuevo.");
@@ -62,11 +52,9 @@ export default function ProjectPhotos({ draft, setDraft, onSaveNow }) {
   };
 
   const remove = id => {
-    setDraft(d => {
-      const nextPhotos = (d.photos ?? []).filter(p => p.id !== id);
-      setLightbox(lb => lb === null ? null : nextPhotos.length === 0 ? null : Math.min(lb, nextPhotos.length - 1));
-      return { ...d, photos: nextPhotos };
-    });
+    const nextPhotos = photos.filter(p => p.id !== id);
+    setLightbox(lb => lb === null ? null : nextPhotos.length === 0 ? null : Math.min(lb, nextPhotos.length - 1));
+    setDraft(d => ({ ...d, photos: (d.photos ?? []).filter(p => p.id !== id) }));
   };
 
   const setCaption = (id, caption) => setDraft(d => ({ ...d, photos: (d.photos ?? []).map(p => p.id === id ? { ...p, caption } : p) }));

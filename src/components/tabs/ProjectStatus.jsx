@@ -20,6 +20,7 @@ export default function ProjectStatus({ draft, upd, setDraft, readOnly = false }
   const toggleState = (id, state) => {
     if (readOnly) return;
     const item = items.find(x => x.id === id);
+    if (!item) return;
     const next = item.state === state ? null : state;
     setDraft(d => addHistory(
       { ...d, statusItems: d.statusItems.map(x => x.id === id ? { ...x, state: next } : x) },

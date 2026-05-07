@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Card from '../ui/Card.jsx';
 import SecLabel from '../ui/SecLabel.jsx';
 import Pill from '../ui/Pill.jsx';
@@ -21,6 +21,7 @@ export default function ProjectApertura({ draft, upd, setDraft, readOnly = false
   const [form, setForm] = useState({ name: "", assignee: "" });
   const [filter, setFilter] = useState("all");
   const assignees = useMemo(() => [...new Set(items.map(x => x.assignee).filter(Boolean))].sort(), [items]);
+  useEffect(() => { if (filter !== "all" && !assignees.includes(filter)) setFilter("all"); }, [assignees, filter]);
   const filtered = filter === "all" ? items : items.filter(x => x.assignee === filter);
   const ok    = filtered.filter(x => x.state === "OK").length;
   const falta = filtered.filter(x => x.state === "Falta").length;
@@ -35,6 +36,7 @@ export default function ProjectApertura({ draft, upd, setDraft, readOnly = false
   const toggleState = (id, state) => {
     if (readOnly) return;
     const it = items.find(x => x.id === id);
+    if (!it) return;
     const next = it.state === state ? null : state;
     setDraft(d => addHistory(
       { ...d, aperturaItems: d.aperturaItems.map(x => x.id === id ? { ...x, state: next } : x) },
