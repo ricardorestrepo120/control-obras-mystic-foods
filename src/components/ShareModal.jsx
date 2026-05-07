@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import Modal from './ui/Modal.jsx';
 import Btn from './ui/Btn.jsx';
 import Input from './ui/Input.jsx';
@@ -9,6 +9,7 @@ import { encodeShare } from '../lib/dataModel.js';
 
 export default function ShareModal({ project, onClose }) {
   const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef(null);
   const encoded = useMemo(() => encodeShare(project), [project]);
   const url = useMemo(() => encoded ? `${window.location.href.split("#")[0]}#share=${encoded}` : null, [encoded]);
 
@@ -17,11 +18,14 @@ export default function ShareModal({ project, onClose }) {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // clipboard API unavailable or denied — do nothing
     }
   };
+
+  useEffect(() => () => clearTimeout(copiedTimerRef.current), []);
 
   useEffect(() => {
     const onKey = e => { if (e.key === "Escape") onClose(); };

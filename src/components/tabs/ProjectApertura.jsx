@@ -44,7 +44,7 @@ export default function ProjectApertura({ draft, upd, setDraft, readOnly = false
     ));
   };
 
-  const patch = (id, ch) => upd("aperturaItems", items.map(x => x.id === id ? { ...x, ...ch } : x));
+  const patch = (id, ch) => upd("aperturaItems", prev => prev.map(x => x.id === id ? { ...x, ...ch } : x));
 
   return (
     <div className="fu" style={col({ gap: 14 })}>

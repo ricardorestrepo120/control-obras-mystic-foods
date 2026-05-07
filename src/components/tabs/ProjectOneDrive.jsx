@@ -16,7 +16,12 @@ export default function ProjectOneDrive({ draft, upd }) {
   const updateFolder = (id, ch) => upd("onedriveFolders", folders.map(f => f.id === id ? { ...f, ...ch } : f));
   const addFolder    = () => upd("onedriveFolders", [...folders, { id: `f-${Date.now()}`, label: "Nueva carpeta", url: "" }]);
   const removeFolder = id => upd("onedriveFolders", folders.filter(f => f.id !== id));
-  const openUrl = url => { if (!url.trim()) return; window.open(url.startsWith("http") ? url : `https://${url}`, "_blank", "noopener,noreferrer"); };
+  const openUrl = url => {
+    const t = url.trim();
+    if (!t) return;
+    if (/^(javascript|data):/i.test(t)) return;
+    window.open(/^https?:\/\//i.test(t) ? t : `https://${t}`, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className="fu" style={col({ gap: 14 })}>

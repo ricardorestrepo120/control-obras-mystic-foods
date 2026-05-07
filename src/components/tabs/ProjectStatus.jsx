@@ -74,7 +74,7 @@ export default function ProjectStatus({ draft, upd, setDraft, readOnly = false }
                     {it.custom && <IconBtn icon={<I.Trash size={13} />} onClick={() => upd("statusItems", items.filter(x => x.id !== it.id))} title="Eliminar" danger />}
                   </div>}
             </div>
-            {!readOnly && <Input value={it.notes || ""} onChange={e => upd("statusItems", items.map(x => x.id === it.id ? { ...x, notes: e.target.value } : x))} placeholder="Notas (opcional)" style={{ height: 34, fontSize: 12 }} />}
+            {!readOnly && <Input value={it.notes || ""} onChange={e => { const v = e.target.value; upd("statusItems", prev => prev.map(x => x.id === it.id ? { ...x, notes: v } : x)); }} placeholder="Notas (opcional)" style={{ height: 34, fontSize: 12 }} />}
           </div>
         ))}
       </Card>

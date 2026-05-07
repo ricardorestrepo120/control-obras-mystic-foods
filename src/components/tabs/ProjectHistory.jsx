@@ -10,7 +10,12 @@ export default function ProjectHistory({ draft }) {
   const events = draft.history ?? [];
   const groups = useMemo(() => {
     const map = new Map();
-    events.forEach(ev => { const k = new Date(ev.t).toISOString().slice(0, 10); if (!map.has(k)) map.set(k, []); map.get(k).push(ev); });
+    events.forEach(ev => {
+      const d = new Date(ev.t);
+      const k = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(ev);
+    });
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   }, [events]);
 

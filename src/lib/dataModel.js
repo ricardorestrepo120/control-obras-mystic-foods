@@ -65,7 +65,7 @@ export const DEFAULT_ONEDRIVEFOLDERS = () => [{ id: "f1", label: "Carpeta princi
 
 export function makeProject() {
   return {
-    id: `p-${Date.now()}`,
+    id: `p-${crypto.randomUUID()}`,
     name: "", brand: BRANDS[0].id, localNumber: "", localArea: "",
     status: "En planificación", startDate: "", openingDate: "", notes: "",
     createdAt: Date.now(),

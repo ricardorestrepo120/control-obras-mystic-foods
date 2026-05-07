@@ -72,7 +72,7 @@ export default function ProjectInfo({ draft, isNew, upd, contactForm, setContact
         </Card>
       </div>
       <Card>
-        <SecLabel action={<Btn size="sm" variant="soft" icon={<I.Plus size={13} />} onClick={() => setContactForm({ id: `c-${Date.now()}`, name: "", phone: "", email: "", role: "" })}>Agregar</Btn>}>Contactos</SecLabel>
+        <SecLabel action={<Btn size="sm" variant="soft" icon={<I.Plus size={13} />} onClick={() => setContactForm({ id: `c-${crypto.randomUUID()}`, name: "", phone: "", email: "", role: "" })}>Agregar</Btn>}>Contactos</SecLabel>
         {contactForm && (
           <div style={{ background: "var(--bg-soft)", border: "1px solid var(--bd)", borderRadius: 10, padding: 14, marginBottom: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>

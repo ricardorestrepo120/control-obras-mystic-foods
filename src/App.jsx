@@ -89,6 +89,7 @@ export default function App() {
         const fresh = rows.map(migrate);
         setProjects(prev => {
           const serverMap = new Map(fresh.map(fp => [fp.id, fp]));
+          const prevIds   = new Set(prev.map(p => p.id));
           let changed = false;
           const next = prev.map(cp => {
             const fp = serverMap.get(cp.id);
@@ -96,7 +97,7 @@ export default function App() {
             return cp;
           });
           fresh.forEach(fp => {
-            if (!prev.find(p => p.id === fp.id)) { changed = true; next.push(fp); }
+            if (!prevIds.has(fp.id)) { changed = true; next.push(fp); }
           });
           return changed ? next : prev;
         });
@@ -116,7 +117,9 @@ export default function App() {
 
   const handleLogin = useCallback(s => setSession(s), []);
 
-  const upd = useCallback((field, val) => setDraft(d => ({ ...d, [field]: val })), []);
+  // Accepts a plain value or an updater function (field, prev => next)
+  const upd = useCallback((field, val) =>
+    setDraft(d => ({ ...d, [field]: typeof val === "function" ? val(d[field]) : val })), []);
 
   const openProject = id => {
     const p = projects.find(x => x.id === id);
