@@ -3,23 +3,7 @@ import Empty from '../ui/Empty.jsx';
 import IconBtn from '../ui/IconBtn.jsx';
 import { I } from '../icons/index.jsx';
 import { col, fx, relTime } from '../../lib/utils.js';
-import { MAX_PHOTO_SIDE, PHOTO_QUALITY } from '../../lib/dataModel.js';
-
-function compressImage(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      let { width: w, height: h } = img;
-      if (w > MAX_PHOTO_SIDE || h > MAX_PHOTO_SIDE) { const r = Math.min(MAX_PHOTO_SIDE / w, MAX_PHOTO_SIDE / h); w = Math.round(w * r); h = Math.round(h * r); }
-      const c = document.createElement("canvas"); c.width = w; c.height = h;
-      c.getContext("2d").drawImage(img, 0, 0, w, h);
-      resolve(c.toDataURL("image/jpeg", PHOTO_QUALITY));
-    };
-    img.onerror = e => { URL.revokeObjectURL(url); reject(e); };
-    img.src = url;
-  });
-}
+import { compressImage } from '../../lib/dataModel.js';
 
 export default function ProjectPhotos({ draft, setDraft }) {
   const photos = draft.photos ?? [];

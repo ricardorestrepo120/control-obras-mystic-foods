@@ -136,9 +136,15 @@ export default function App() {
   const save = useCallback(async (projectToSave) => {
     if (!projectToSave?.name?.trim()) return;
     const fittedPhotos = await fitPhotosToLimit(projectToSave.photos ?? []);
-    const pToSave = { ...projectToSave, photos: fittedPhotos, _srv: new Date().toISOString() };
+    const fittedVisitas = await Promise.all(
+      (projectToSave.visitas ?? []).map(async v => ({
+        ...v,
+        photos: await fitPhotosToLimit(v.photos ?? []),
+      }))
+    );
+    const pToSave = { ...projectToSave, photos: fittedPhotos, visitas: fittedVisitas, _srv: new Date().toISOString() };
     setProjects(prev => prev.find(x => x.id === pToSave.id) ? prev.map(x => x.id === pToSave.id ? pToSave : x) : [...prev, pToSave]);
-    setDraft(prev => ({ ...prev, photos: pToSave.photos }));
+    setDraft(prev => ({ ...prev, photos: pToSave.photos, visitas: pToSave.visitas }));
     setIsNew(false);
     setSyncing(true);
     db.save(pToSave)

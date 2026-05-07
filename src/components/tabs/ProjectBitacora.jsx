@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Card from '../ui/Card.jsx';
 import SecLabel from '../ui/SecLabel.jsx';
 import Btn from '../ui/Btn.jsx';
@@ -9,26 +9,7 @@ import Lbl from '../ui/Lbl.jsx';
 import Empty from '../ui/Empty.jsx';
 import { I } from '../icons/index.jsx';
 import { col, fx, fmtDateLong } from '../../lib/utils.js';
-import { MAX_PHOTO_SIDE, PHOTO_QUALITY } from '../../lib/dataModel.js';
-
-function compressImage(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      let { width: w, height: h } = img;
-      if (w > MAX_PHOTO_SIDE || h > MAX_PHOTO_SIDE) {
-        const r = Math.min(MAX_PHOTO_SIDE / w, MAX_PHOTO_SIDE / h);
-        w = Math.round(w * r); h = Math.round(h * r);
-      }
-      const c = document.createElement("canvas"); c.width = w; c.height = h;
-      c.getContext("2d").drawImage(img, 0, 0, w, h);
-      resolve(c.toDataURL("image/jpeg", PHOTO_QUALITY));
-    };
-    img.onerror = e => { URL.revokeObjectURL(url); reject(e); };
-    img.src = url;
-  });
-}
+import { compressImage } from '../../lib/dataModel.js';
 
 const todayStr = () => {
   const d = new Date();
@@ -42,11 +23,12 @@ const freshForm = () => ({ date: todayStr(), time: nowTimeStr(), quien: "", obse
 
 export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
   const visitas = draft.visitas ?? [];
-  const sorted = [...visitas].sort((a, b) => {
+  const sorted = useMemo(() => [...visitas].sort((a, b) => {
     const ka = `${a.date}T${a.time || "00:00"}`;
     const kb = `${b.date}T${b.time || "00:00"}`;
-    return kb.localeCompare(ka);
-  });
+    const cmp = kb.localeCompare(ka);
+    return cmp !== 0 ? cmp : (b.createdAt ?? 0) - (a.createdAt ?? 0);
+  }), [visitas]);
 
   const [adding, setAdding]         = useState(false);
   const [form, setForm]             = useState(freshForm);
@@ -54,10 +36,18 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
   const [uploading, setUploading]   = useState(false);
   const [uploadErr, setUploadErr]   = useState("");
 
+  const genRef           = useRef(0);
+  const uploadErrTimerRef = useRef(null);
+
+  useEffect(() => () => { clearTimeout(uploadErrTimerRef.current); }, []);
+
   const uploadPhotos = async files => {
+    const gen = ++genRef.current;
     const valid = Array.from(files).filter(f => f.type.startsWith("image/"));
     if (!valid.length) return;
-    setUploading(true); setUploadErr("");
+    setUploading(true);
+    clearTimeout(uploadErrTimerRef.current);
+    setUploadErr("");
     try {
       const added = await Promise.all(valid.map(async f => ({
         id: `vph-${crypto.randomUUID()}`,
@@ -65,17 +55,21 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
         data: await compressImage(f),
         uploadedAt: Date.now(),
       })));
+      if (gen !== genRef.current) return;
       setFormPhotos(prev => [...prev, ...added]);
     } catch {
+      if (gen !== genRef.current) return;
       setUploadErr("Error al procesar las fotos. Intenta de nuevo.");
-      setTimeout(() => setUploadErr(""), 3000);
+      uploadErrTimerRef.current = setTimeout(() => setUploadErr(""), 3000);
     } finally {
-      setUploading(false);
+      if (gen === genRef.current) setUploading(false);
     }
   };
 
   const saveVisita = () => {
-    if (!form.date) return;
+    if (!form.date || uploading) return;
+    clearTimeout(uploadErrTimerRef.current);
+    setUploadErr("");
     const v = {
       id: `v-${crypto.randomUUID()}`,
       date: form.date,
@@ -92,9 +86,11 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
   };
 
   const cancel = () => {
+    genRef.current++;
     setAdding(false);
     setForm(freshForm());
     setFormPhotos([]);
+    clearTimeout(uploadErrTimerRef.current);
     setUploadErr("");
   };
 
@@ -163,7 +159,7 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
           </div>
 
           <div style={fx({ gap: 8 })}>
-            <Btn variant="primary" size="sm" onClick={saveVisita} disabled={!form.date}>Guardar visita</Btn>
+            <Btn variant="primary" size="sm" onClick={saveVisita} disabled={!form.date || uploading}>Guardar visita</Btn>
             <Btn variant="text" size="sm" onClick={cancel}>Cancelar</Btn>
           </div>
         </Card>

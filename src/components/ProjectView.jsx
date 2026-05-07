@@ -42,8 +42,12 @@ export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSav
 
   const draftKey = useMemo(() => {
     if (isNew || !draft?.name?.trim()) return null;
-    const { photos: _p, ...rest } = draft;
-    return JSON.stringify({ ...rest, _pc: _p?.length ?? 0 });
+    const { photos: _p, visitas: _v, ...rest } = draft;
+    const visitasMeta = (_v ?? []).map(v => ({
+      id: v.id, date: v.date, time: v.time, quien: v.quien,
+      observaciones: v.observaciones, _pc: v.photos?.length ?? 0,
+    }));
+    return JSON.stringify({ ...rest, _pc: _p?.length ?? 0, _vm: visitasMeta });
   }, [draft, isNew]);
 
   useEffect(() => {
