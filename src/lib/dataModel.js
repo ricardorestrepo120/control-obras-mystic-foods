@@ -71,7 +71,7 @@ export function makeProject() {
     createdAt: Date.now(),
     contacts: [],
     statusItems: DEFAULT_ITEMS.map(n => ({ id: n, name: n, state: null, notes: "" })),
-    checklist: [], aperturaItems: [], history: [], photos: [],
+    checklist: [], aperturaItems: [], history: [], photos: [], visitas: [],
     onedriveFolders: DEFAULT_ONEDRIVEFOLDERS(),
   };
 }
@@ -83,6 +83,7 @@ export function migrate(raw) {
   if (!Array.isArray(o.aperturaItems))   o.aperturaItems = [];
   if (!Array.isArray(o.history))         o.history = [];
   if (!Array.isArray(o.photos))          o.photos = [];
+  if (!Array.isArray(o.visitas))         o.visitas = [];
   if (!Array.isArray(o.onedriveFolders)) o.onedriveFolders = DEFAULT_ONEDRIVEFOLDERS();
   const ex = Array.isArray(o.statusItems) ? o.statusItems : [];
   o.statusItems = [

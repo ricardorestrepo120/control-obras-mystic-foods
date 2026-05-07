@@ -6,6 +6,7 @@ import Avatar from './ui/Avatar.jsx';
 import DaysChip from './ui/DaysChip.jsx';
 import ProjectStatus from './tabs/ProjectStatus.jsx';
 import ProjectNotes from './tabs/ProjectNotes.jsx';
+import ProjectBitacora from './tabs/ProjectBitacora.jsx';
 import ProjectApertura from './tabs/ProjectApertura.jsx';
 import ProjectHistory from './tabs/ProjectHistory.jsx';
 import { I } from './icons/index.jsx';
@@ -16,6 +17,7 @@ const SHARED_TABS = [
   { id: "info",     label: "Información", Icon: p => <I.DocText  {...p} /> },
   { id: "status",   label: "Preliminares",Icon: p => <I.Layers   {...p} /> },
   { id: "notes",    label: "Notas",       Icon: p => <I.PenLine  {...p} /> },
+  { id: "bitacora", label: "Bitácora",    Icon: p => <I.Notebook {...p} /> },
   { id: "apertura", label: "Apertura",    Icon: p => <I.Key      {...p} /> },
   { id: "history",  label: "Historial",   Icon: p => <I.Activity {...p} /> },
 ];
@@ -63,6 +65,7 @@ export default function SharedView({ project }) {
         {tab === "info"     && <SharedInfoView project={project} />}
         {tab === "status"   && <ProjectStatus   draft={project} upd={noop} setDraft={noop} readOnly />}
         {tab === "notes"    && <ProjectNotes    draft={project} upd={noop} readOnly />}
+        {tab === "bitacora" && <ProjectBitacora draft={project} setDraft={noop} readOnly />}
         {tab === "apertura" && <ProjectApertura draft={project} upd={noop} setDraft={noop} readOnly />}
         {tab === "history"  && <ProjectHistory  draft={project} />}
         <div style={{ marginTop: 32, padding: "16px 0", borderTop: "1px solid var(--bd)", textAlign: "center", fontSize: 11, color: "var(--tx-3)" }}>Reporte generado por Mystic Foods · Control de Obras</div>
