@@ -8,6 +8,7 @@ import ProjectNotes from './tabs/ProjectNotes.jsx';
 import ProjectBitacora from './tabs/ProjectBitacora.jsx';
 import ProjectApertura from './tabs/ProjectApertura.jsx';
 import ProjectHistory from './tabs/ProjectHistory.jsx';
+import ProjectCronograma from './tabs/ProjectCronograma.jsx';
 import { I } from './icons/index.jsx';
 
 const TABS = [
@@ -16,8 +17,9 @@ const TABS = [
   { id: "photos",    label: "Fotos",       Icon: p => <I.Camera    {...p} /> },
   { id: "onedrive",  label: "Documentos",  Icon: p => <I.Folder    {...p} /> },
   { id: "notes",     label: "Notas",       Icon: p => <I.PenLine   {...p} /> },
-  { id: "bitacora",  label: "Bitácora",    Icon: p => <I.Notebook  {...p} /> },
-  { id: "apertura",  label: "Apertura",    Icon: p => <I.Key       {...p} /> },
+  { id: "bitacora",    label: "Bitácora",    Icon: p => <I.Notebook  {...p} /> },
+  { id: "cronograma", label: "Cronograma",  Icon: p => <I.Calendar  {...p} /> },
+  { id: "apertura",   label: "Apertura",    Icon: p => <I.Key       {...p} /> },
   { id: "history",   label: "Historial",   Icon: p => <I.Activity  {...p} /> },
 ];
 
@@ -82,8 +84,9 @@ export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSav
         {!isNew && tab === "photos"    && <ProjectPhotos   draft={draft} setDraft={setDraft} />}
         {!isNew && tab === "onedrive"  && <ProjectOneDrive draft={draft} upd={upd} />}
         {!isNew && tab === "notes"     && <ProjectNotes    draft={draft} upd={upd} />}
-        {!isNew && tab === "bitacora"  && <ProjectBitacora draft={draft} setDraft={setDraft} />}
-        {!isNew && tab === "apertura"  && <ProjectApertura draft={draft} upd={upd} setDraft={setDraft} />}
+        {!isNew && tab === "bitacora"    && <ProjectBitacora   draft={draft} setDraft={setDraft} />}
+        {!isNew && tab === "cronograma" && <ProjectCronograma draft={draft} setDraft={setDraft} />}
+        {!isNew && tab === "apertura"   && <ProjectApertura   draft={draft} upd={upd} setDraft={setDraft} />}
         {!isNew && tab === "history"   && <ProjectHistory  draft={draft} />}
       </div>
     </div>
