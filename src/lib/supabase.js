@@ -36,8 +36,13 @@ export const db = {
     if (!r.ok) throw new Error(await r.text());
   },
   async remove(id) {
-    const r = await sbFetch(`/obras?id=eq.${encodeURIComponent(id)}`, { method: "DELETE" });
+    const r = await sbFetch(`/obras?id=eq.${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { "Prefer": "return=representation" },
+    });
     if (!r.ok) throw new Error(await r.text());
+    const deleted = await r.json();
+    if (deleted.length === 0) throw new Error("DELETE bloqueado por RLS — agrega política DELETE en Supabase");
   },
 };
 
