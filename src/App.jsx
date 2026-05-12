@@ -31,7 +31,8 @@ export default function App() {
   const [toast,        setToast]        = useState({ show: false, text: "" });
   const [delModal,     setDelModal]     = useState(null);
   const [shareOpen,    setShareOpen]    = useState(false);
-  const toastTimerRef = useRef(null);
+  const toastTimerRef  = useRef(null);
+  const deletedIdsRef  = useRef(new Set());
 
   const handleLogout = useCallback(async () => {
     await auth.signOut();
@@ -86,7 +87,7 @@ export default function App() {
     const tick = async () => {
       try {
         const rows = await db.loadAll();
-        const fresh = rows.map(migrate);
+        const fresh = rows.map(migrate).filter(fp => !deletedIdsRef.current.has(fp.id));
         setProjects(prev => {
           const serverMap = new Map(fresh.map(fp => [fp.id, fp]));
           const prevIds   = new Set(prev.map(p => p.id));
@@ -172,6 +173,7 @@ export default function App() {
   const confirmDelete = () => {
     if (delModal.step === 1) { setDelModal({ step: 2 }); return; }
     const id = draft.id;
+    deletedIdsRef.current.add(id);
     setProjects(prev => prev.filter(p => p.id !== id));
     setDelModal(null); setRoute({ view: "dash" });
     setSyncing(true);
