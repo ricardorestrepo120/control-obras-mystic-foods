@@ -44,6 +44,7 @@ export default function App() {
     setRoute({ view: "dash" });
     setDelModal(null);
     setShareOpen(false);
+    deletedIdsRef.current.clear();
   }, []);
 
   // Restore stored session on mount (skip for shared links)
@@ -145,15 +146,15 @@ export default function App() {
     );
     const pToSave = { ...projectToSave, photos: fittedPhotos, visitas: fittedVisitas, _srv: new Date().toISOString() };
     setProjects(prev => prev.find(x => x.id === pToSave.id) ? prev.map(x => x.id === pToSave.id ? pToSave : x) : [...prev, pToSave]);
-    setDraft(prev => ({ ...prev, photos: pToSave.photos, visitas: pToSave.visitas }));
+    // Guard: only update draft if user is still viewing this same project
+    setDraft(prev => prev?.id === pToSave.id ? { ...prev, photos: pToSave.photos, visitas: pToSave.visitas } : prev);
     setIsNew(false);
     setSyncing(true);
     db.save(pToSave)
       .then(() => { setSyncError(false); showToast("Cambios guardados"); })
       .catch(err => {
         setSyncError(true);
-        showToast("Error al guardar — reintentando…");
-        setTimeout(() => db.save(pToSave).catch(console.error), 4000);
+        showToast("Error al guardar. Intenta de nuevo.");
         console.error(err);
       })
       .finally(() => setSyncing(false));

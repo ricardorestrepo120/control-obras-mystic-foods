@@ -28,7 +28,7 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
 
   const addItem = () => {
     if (!form.text.trim()) return;
-    upd("checklist", [...list, { id: `cl-${Date.now()}`, text: form.text.trim(), done: false, assignee: form.assignee.trim() || "", reminder: form.rem ? { date: form.rem, time: form.time } : null }]);
+    upd("checklist", [...list, { id: `cl-${crypto.randomUUID()}`, text: form.text.trim(), done: false, assignee: form.assignee.trim() || "", reminder: form.rem ? { date: form.rem, time: form.time } : null }]);
     setForm({ text: "", rem: "", time: "", assignee: "" }); setAdding(false);
   };
   const patch = (id, ch) => upd("checklist", prev => prev.map(x => x.id === id ? { ...x, ...ch } : x));

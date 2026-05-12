@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Empty from '../ui/Empty.jsx';
 import IconBtn from '../ui/IconBtn.jsx';
 import { I } from '../icons/index.jsx';
@@ -10,6 +10,8 @@ export default function ProjectPhotos({ draft, setDraft }) {
   const [lightbox, setLightbox] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [sizeWarn, setSizeWarn] = useState("");
+  const sizeWarnTimerRef = useRef(null);
+  useEffect(() => () => clearTimeout(sizeWarnTimerRef.current), []);
 
   const newPhotoId = useCallback(() => {
     if (typeof crypto !== "undefined" && crypto.randomUUID) return `ph-${crypto.randomUUID()}`;
@@ -29,7 +31,8 @@ export default function ProjectPhotos({ draft, setDraft }) {
     } catch (e) {
       console.error("[photos] upload error:", e);
       setSizeWarn("Error al procesar las fotos. Intenta de nuevo.");
-      setTimeout(() => setSizeWarn(""), 4000);
+      clearTimeout(sizeWarnTimerRef.current);
+      sizeWarnTimerRef.current = setTimeout(() => setSizeWarn(""), 4000);
     } finally {
       setUploading(false);
     }

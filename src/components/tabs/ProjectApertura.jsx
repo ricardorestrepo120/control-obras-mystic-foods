@@ -29,7 +29,7 @@ export default function ProjectApertura({ draft, upd, setDraft, readOnly = false
 
   const addItem = () => {
     if (!form.name.trim()) return;
-    upd("aperturaItems", [...items, { id: `ap-${Date.now()}`, name: form.name.trim(), state: null, assignee: form.assignee.trim() || "" }]);
+    upd("aperturaItems", [...items, { id: `ap-${crypto.randomUUID()}`, name: form.name.trim(), state: null, assignee: form.assignee.trim() || "" }]);
     setForm({ name: "", assignee: "" }); setAdding(false);
   };
 
