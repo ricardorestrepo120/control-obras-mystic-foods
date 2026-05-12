@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Empty from '../ui/Empty.jsx';
 import IconBtn from '../ui/IconBtn.jsx';
 import { I } from '../icons/index.jsx';
@@ -13,11 +13,6 @@ export default function ProjectPhotos({ draft, setDraft }) {
   const sizeWarnTimerRef = useRef(null);
   useEffect(() => () => clearTimeout(sizeWarnTimerRef.current), []);
 
-  const newPhotoId = useCallback(() => {
-    if (typeof crypto !== "undefined" && crypto.randomUUID) return `ph-${crypto.randomUUID()}`;
-    return `ph-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-  }, []);
-
   const upload = async files => {
     const valid = Array.from(files).filter(f => f.type.startsWith("image/"));
     if (!valid.length) return;
@@ -25,7 +20,7 @@ export default function ProjectPhotos({ draft, setDraft }) {
     try {
       const newPhotos = await Promise.all(valid.map(async f => {
         const data = await compressImage(f);
-        return { id: newPhotoId(), name: f.name, data, uploadedAt: Date.now(), caption: "" };
+        return { id: `ph-${crypto.randomUUID()}`, name: f.name, data, uploadedAt: Date.now(), caption: "" };
       }));
       setDraft(d => ({ ...d, photos: [...(d.photos ?? []), ...newPhotos] }));
     } catch (e) {

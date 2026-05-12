@@ -14,7 +14,7 @@ export default function ProjectOneDrive({ draft, upd }) {
   const [editingId, setEditingId] = useState(null);
 
   const updateFolder = (id, ch) => upd("onedriveFolders", folders.map(f => f.id === id ? { ...f, ...ch } : f));
-  const addFolder    = () => upd("onedriveFolders", [...folders, { id: `f-${Date.now()}`, label: "Nueva carpeta", url: "" }]);
+  const addFolder    = () => upd("onedriveFolders", [...folders, { id: `f-${crypto.randomUUID()}`, label: "Nueva carpeta", url: "" }]);
   const removeFolder = id => upd("onedriveFolders", folders.filter(f => f.id !== id));
   const openUrl = url => {
     const t = url.trim();

@@ -20,27 +20,36 @@ const authFetch = (path, opts = {}) =>
 
 const SESSION_KEY = "co_session";
 
+// Throws an error with a `.status` property so callers can distinguish
+// auth failures (401/403) from other HTTP errors.
+const assertOk = async r => {
+  if (!r.ok) {
+    const text = await r.text();
+    const err = new Error(text);
+    err.status = r.status;
+    throw err;
+  }
+  return r;
+};
+
 export const db = {
   async loadAll() {
-    const r = await sbFetch("/obras?select=id,data,updated_at&order=created_at.asc");
-    if (!r.ok) throw new Error(await r.text());
+    const r = await assertOk(await sbFetch("/obras?select=id,data,updated_at&order=created_at.asc"));
     return (await r.json()).map(row => ({ ...row.data, id: row.id, _srv: row.updated_at }));
   },
   async save(p) {
     const { _srv, ...clean } = p;
-    const r = await sbFetch("/obras", {
+    await assertOk(await sbFetch("/obras", {
       method: "POST",
       headers: { "Prefer": "resolution=merge-duplicates" },
       body: JSON.stringify({ id: clean.id, data: clean, updated_at: _srv ?? new Date().toISOString() }),
-    });
-    if (!r.ok) throw new Error(await r.text());
+    }));
   },
   async remove(id) {
-    const r = await sbFetch(`/obras?id=eq.${encodeURIComponent(id)}`, {
+    const r = await assertOk(await sbFetch(`/obras?id=eq.${encodeURIComponent(id)}`, {
       method: "DELETE",
       headers: { "Prefer": "return=representation" },
-    });
-    if (!r.ok) throw new Error(await r.text());
+    }));
     const deleted = await r.json();
     if (deleted.length === 0) throw new Error("DELETE bloqueado por RLS — agrega política DELETE en Supabase");
   },

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import Modal from './ui/Modal.jsx';
 import Btn from './ui/Btn.jsx';
 import Input from './ui/Input.jsx';
@@ -26,12 +26,6 @@ export default function ShareModal({ project, onClose }) {
   };
 
   useEffect(() => () => clearTimeout(copiedTimerRef.current), []);
-
-  useEffect(() => {
-    const onKey = e => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   return (
     <Modal onClose={onClose} width={500}>

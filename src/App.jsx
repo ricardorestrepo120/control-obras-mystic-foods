@@ -61,7 +61,7 @@ export default function App() {
       .then(rows => { setProjects(rows.map(migrate)); setSyncError(false); })
       .catch(err  => { console.error("Load failed:", err); setSyncError(true); })
       .finally(()  => { setSyncing(false); setLoaded(true); });
-  }, [session]);
+  }, [session, loaded]);
 
   // Auto-refresh token 5 minutes before it expires
   useEffect(() => {
@@ -103,13 +103,14 @@ export default function App() {
           });
           return changed ? next : prev;
         });
-      } catch {
-        // silently ignore
+      } catch (err) {
+        // Auth failure (expired/revoked token): force logout so user can re-authenticate
+        if (err.status === 401 || err.status === 403) handleLogout();
       }
     };
     const id = setInterval(tick, 30_000);
     return () => clearInterval(id);
-  }, [loaded, sharedProject, session]);
+  }, [loaded, sharedProject, session, handleLogout]);
 
   const showToast = useCallback(text => {
     setToast({ show: true, text });
