@@ -11,8 +11,6 @@ import { I } from './components/icons/index.jsx';
 import { db, auth } from './lib/supabase.js';
 import { migrate, makeProject, readShareHash, fitPhotosToLimit } from './lib/dataModel.js';
 import { fx } from './lib/utils.js';
-import { initNotifiedIds, checkAndNotify } from './lib/notifications.js';
-import UserProfileModal from './components/UserProfileModal.jsx';
 
 export default function App() {
   const sharedProject = useMemo(() => readShareHash(), []);
@@ -33,11 +31,8 @@ export default function App() {
   const [toast,        setToast]        = useState({ show: false, text: "" });
   const [delModal,     setDelModal]     = useState(null);
   const [shareOpen,    setShareOpen]    = useState(false);
-  const [profileOpen,  setProfileOpen]  = useState(false);
   const toastTimerRef  = useRef(null);
   const deletedIdsRef  = useRef(new Set());
-  const projectsRef    = useRef([]);
-  useEffect(() => { projectsRef.current = projects; }, [projects]);
   useEffect(() => () => clearTimeout(toastTimerRef.current), []);
 
   const handleLogout = useCallback(async () => {
@@ -66,7 +61,7 @@ export default function App() {
     if (!session || loaded) return;
     setSyncing(true);
     db.loadAll()
-      .then(rows => { const migrated = rows.map(migrate); setProjects(migrated); setSyncError(false); initNotifiedIds(migrated); })
+      .then(rows => { setProjects(rows.map(migrate)); setSyncError(false); })
       .catch(err  => { console.error("Load failed:", err); setSyncError(true); })
       .finally(()  => { setSyncing(false); setLoaded(true); });
   }, [session, loaded]);
@@ -110,12 +105,10 @@ export default function App() {
   // Background polling every 30 s (only when authenticated and loaded)
   useEffect(() => {
     if (!loaded || sharedProject || !session) return;
-    const email = session.user?.email;
     const tick = async () => {
       try {
         const rows = await db.loadAll();
         const fresh = rows.map(migrate).filter(fp => !deletedIdsRef.current.has(fp.id));
-        checkAndNotify(fresh, projectsRef.current, email);
         setProjects(prev => {
           const serverMap = new Map(fresh.map(fp => [fp.id, fp]));
           const prevIds   = new Set(prev.map(p => p.id));
@@ -237,7 +230,7 @@ export default function App() {
         <Dashboard projects={projects} onOpen={openProject} onNew={newProject}
           filter={filter} setFilter={setFilter} sortBy={sortBy} setSortBy={setSortBy}
           query={query} setQuery={setQuery} syncing={syncing} syncError={syncError}
-          onLogout={handleLogout} userEmail={userEmail} onProfile={() => setProfileOpen(true)} />
+          onLogout={handleLogout} userEmail={userEmail} />
       )}
       {route.view === "proj" && draft && (
         <ProjectView draft={draft} isNew={isNew} upd={upd} setDraft={setDraft}
@@ -245,7 +238,7 @@ export default function App() {
           onDelete={() => setDelModal({ step: 1, id: draft.id })} onShare={() => setShareOpen(true)}
           contactForm={contactForm} setContactForm={setContactForm} saveContact={saveContact}
           syncing={syncing} syncError={syncError}
-          onLogout={handleLogout} userEmail={userEmail} onProfile={() => setProfileOpen(true)} />
+          onLogout={handleLogout} userEmail={userEmail} />
       )}
       {shareOpen && draft && <ShareModal project={draft} onClose={() => setShareOpen(false)} />}
       {delModal && (
@@ -270,7 +263,6 @@ export default function App() {
         </Modal>
       )}
       <Toast visible={toast.show}><I.Check size={14} sw={2.5} />{toast.text}</Toast>
-      {profileOpen && <UserProfileModal email={userEmail} onClose={() => setProfileOpen(false)} />}
     </div>
   );
 }
