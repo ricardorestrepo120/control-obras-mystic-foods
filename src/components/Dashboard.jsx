@@ -80,12 +80,20 @@ export default function Dashboard({ projects, onOpen, onNew, filter, setFilter, 
 function ProjectCard({ project, onClick }) {
   const b = getBrand(project.brand);
   const pct = calcProgress(project);
+  const recent = (() => {
+    const ts = Math.max(
+      project._srv ? new Date(project._srv).getTime() : 0,
+      project.history?.[0]?.t ?? 0,
+    );
+    return ts > 0 && Date.now() - ts < 4 * 60 * 60_000;
+  })();
   return (
     <div onClick={onClick} className="fu"
       style={{ background: "var(--bg-elev)", border: "1px solid var(--bd)", borderRadius: 12, padding: 16, cursor: "pointer", position: "relative", overflow: "hidden", transition: T }}
       onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = "var(--bd-strong)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.05)"; }}
       onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = "var(--bd)"; e.currentTarget.style.boxShadow = "none"; }}>
       <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: b.accent }} />
+      {recent && <div style={{ position: "absolute", top: 10, right: 10, width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 0 2px var(--bg-elev)" }} />}
       <div style={fx({ justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, gap: 8 })}>
         <BrandChip id={project.brand} />
         <Pill token={STATUS_TOKEN[project.status]} size="sm" dot>{project.status}</Pill>
