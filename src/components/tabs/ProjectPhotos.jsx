@@ -40,14 +40,13 @@ export default function ProjectPhotos({ draft, setDraft }) {
   };
 
   const setCaption = (id, caption) => setDraft(d => ({ ...d, photos: (d.photos ?? []).map(p => p.id === id ? { ...p, caption } : p) }));
-  const prev = () => setLightbox(l => (l - 1 + photos.length) % photos.length);
-  const next = () => setLightbox(l => (l + 1) % photos.length);
 
   useEffect(() => {
     if (lightbox === null) return;
+    const len = photos.length;
     const onKey = e => {
-      if (e.key === "ArrowLeft")  { e.preventDefault(); prev(); }
-      if (e.key === "ArrowRight") { e.preventDefault(); next(); }
+      if (e.key === "ArrowLeft")  { e.preventDefault(); setLightbox(l => (l - 1 + len) % len); }
+      if (e.key === "ArrowRight") { e.preventDefault(); setLightbox(l => (l + 1) % len); }
       if (e.key === "Escape") setLightbox(null);
     };
     window.addEventListener("keydown", onKey);
@@ -100,8 +99,8 @@ export default function ProjectPhotos({ draft, setDraft }) {
             <div style={{ fontSize: 12, color: "rgba(255,255,255,.35)", letterSpacing: .5 }}>{lightbox + 1} / {photos.length}</div>
           </div>
           {photos.length > 1 && <>
-            <button onClick={e => { e.stopPropagation(); prev(); }} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,.13)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I.ArrowL size={20} /></button>
-            <button onClick={e => { e.stopPropagation(); next(); }} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,.13)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I.ArrowR size={20} /></button>
+            <button onClick={e => { e.stopPropagation(); setLightbox(l => (l - 1 + photos.length) % photos.length); }} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,.13)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I.ArrowL size={20} /></button>
+            <button onClick={e => { e.stopPropagation(); setLightbox(l => (l + 1) % photos.length); }} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,.13)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I.ArrowR size={20} /></button>
           </>}
           <button onClick={() => setLightbox(null)} style={{ position: "absolute", top: 14, right: 14, width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,.13)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I.X size={16} /></button>
           <button onClick={e => { e.stopPropagation(); remove(photos[lightbox].id); }} style={{ position: "absolute", top: 14, left: 14, width: 36, height: 36, borderRadius: "50%", background: "rgba(180,30,30,.4)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I.Trash size={15} /></button>

@@ -22,7 +22,7 @@ const SORT_OPTS = [
 export default function Dashboard({ projects, onOpen, onNew, filter, setFilter, sortBy, setSortBy, query, setQuery, syncing, syncError, onLogout, userEmail }) {
   const list = useMemo(() => {
     let r = filter === "all" ? projects : projects.filter(p => p.brand === filter);
-    if (query.trim()) { const q = query.toLowerCase(); r = r.filter(p => p.name.toLowerCase().includes(q) || p.localNumber?.toLowerCase().includes(q)); }
+    if (query.trim()) { const q = query.toLowerCase(); r = r.filter(p => (p.name ?? "").toLowerCase().includes(q) || p.localNumber?.toLowerCase().includes(q)); }
     return [...r].sort((a, b) => {
       if (sortBy === "name") return a.name.localeCompare(b.name);
       if (sortBy === "brand") return a.brand.localeCompare(b.brand);
