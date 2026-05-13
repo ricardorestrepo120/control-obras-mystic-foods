@@ -10,6 +10,7 @@ import ProjectBitacora from './tabs/ProjectBitacora.jsx';
 import ProjectApertura from './tabs/ProjectApertura.jsx';
 import ProjectHistory from './tabs/ProjectHistory.jsx';
 import ProjectCronograma from './tabs/ProjectCronograma.jsx';
+import ProjectMobiliario from './tabs/ProjectMobiliario.jsx';
 import { I } from './icons/index.jsx';
 import { getBrand, STATUS_TOKEN } from '../lib/constants.js';
 import { col, fx, fmtDate, fmtDateLong, parseLocalDate } from '../lib/utils.js';
@@ -17,7 +18,8 @@ import { col, fx, fmtDate, fmtDateLong, parseLocalDate } from '../lib/utils.js';
 const SHARED_TABS = [
   { id: "info",     label: "Información", Icon: p => <I.DocText  {...p} /> },
   { id: "status",   label: "Preliminares",Icon: p => <I.Layers   {...p} /> },
-  { id: "notes",    label: "Pendientes",  Icon: p => <I.PenLine  {...p} /> },
+  { id: "notes",      label: "Pendientes",  Icon: p => <I.PenLine  {...p} /> },
+  { id: "mobiliario", label: "Mobiliario",  Icon: p => <I.Package  {...p} /> },
   { id: "bitacora",    label: "Visitas",     Icon: p => <I.Notebook {...p} /> },
   { id: "cronograma", label: "Cronograma",  Icon: p => <I.Calendar {...p} /> },
   { id: "apertura",   label: "Apertura",    Icon: p => <I.Key      {...p} /> },
@@ -66,7 +68,8 @@ export default function SharedView({ project }) {
         </div>
         {tab === "info"     && <SharedInfoView project={project} />}
         {tab === "status"   && <ProjectStatus   draft={project} upd={noop} setDraft={noop} readOnly />}
-        {tab === "notes"    && <ProjectNotes    draft={project} upd={noop} readOnly />}
+        {tab === "notes"      && <ProjectNotes      draft={project} upd={noop} readOnly />}
+        {tab === "mobiliario" && <ProjectMobiliario draft={project} upd={noop} readOnly />}
         {tab === "bitacora"    && <ProjectBitacora   draft={project} setDraft={noop} readOnly />}
         {tab === "cronograma" && <ProjectCronograma draft={project} setDraft={noop} readOnly />}
         {tab === "apertura"   && <ProjectApertura   draft={project} upd={noop} setDraft={noop} readOnly />}

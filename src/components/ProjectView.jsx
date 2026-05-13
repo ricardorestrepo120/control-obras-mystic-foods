@@ -9,6 +9,7 @@ import ProjectBitacora from './tabs/ProjectBitacora.jsx';
 import ProjectApertura from './tabs/ProjectApertura.jsx';
 import ProjectHistory from './tabs/ProjectHistory.jsx';
 import ProjectCronograma from './tabs/ProjectCronograma.jsx';
+import ProjectMobiliario from './tabs/ProjectMobiliario.jsx';
 import { I } from './icons/index.jsx';
 
 const TABS = [
@@ -16,7 +17,8 @@ const TABS = [
   { id: "status",    label: "Preliminares",Icon: p => <I.Layers    {...p} /> },
   { id: "photos",    label: "Fotos",       Icon: p => <I.Camera    {...p} /> },
   { id: "onedrive",  label: "Documentos",  Icon: p => <I.Folder    {...p} /> },
-  { id: "notes",     label: "Pendientes",  Icon: p => <I.PenLine   {...p} /> },
+  { id: "notes",      label: "Pendientes",  Icon: p => <I.PenLine   {...p} /> },
+  { id: "mobiliario", label: "Mobiliario",  Icon: p => <I.Package   {...p} /> },
   { id: "bitacora",    label: "Visitas",     Icon: p => <I.Notebook  {...p} /> },
   { id: "cronograma", label: "Cronograma",  Icon: p => <I.Calendar  {...p} /> },
   { id: "apertura",   label: "Apertura",    Icon: p => <I.Key       {...p} /> },
@@ -83,7 +85,8 @@ export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSav
         {!isNew && tab === "status"    && <ProjectStatus   draft={draft} upd={upd} setDraft={setDraft} />}
         {!isNew && tab === "photos"    && <ProjectPhotos   draft={draft} setDraft={setDraft} />}
         {!isNew && tab === "onedrive"  && <ProjectOneDrive draft={draft} upd={upd} />}
-        {!isNew && tab === "notes"     && <ProjectNotes    draft={draft} upd={upd} />}
+        {!isNew && tab === "notes"      && <ProjectNotes      draft={draft} upd={upd} />}
+        {!isNew && tab === "mobiliario" && <ProjectMobiliario draft={draft} upd={upd} />}
         {!isNew && tab === "bitacora"    && <ProjectBitacora   draft={draft} setDraft={setDraft} />}
         {!isNew && tab === "cronograma" && <ProjectCronograma draft={draft} setDraft={setDraft} />}
         {!isNew && tab === "apertura"   && <ProjectApertura   draft={draft} upd={upd} setDraft={setDraft} />}
