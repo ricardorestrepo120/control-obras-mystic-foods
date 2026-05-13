@@ -61,7 +61,8 @@ export const auth = {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
-    const body = await r.json();
+    let body;
+    try { body = await r.json(); } catch { throw new Error("Error al iniciar sesión"); }
     if (!r.ok) throw new Error(body.error_description ?? body.message ?? "Error al iniciar sesión");
     return auth._persist({
       access_token:  body.access_token,

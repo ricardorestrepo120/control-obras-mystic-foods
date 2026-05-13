@@ -81,7 +81,7 @@ function SharedInfoView({ project }) {
   return (
     <div style={col({ gap: 14 })}>
       {project.notes && (
-        <Card><SecLabel>Pendientes</SecLabel><div style={{ fontSize: 13, color: "var(--tx)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{project.notes}</div></Card>
+        <Card><SecLabel>Notas de la obra</SecLabel><div style={{ fontSize: 13, color: "var(--tx)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{project.notes}</div></Card>
       )}
       {(project.contacts ?? []).length > 0 && (
         <Card>

@@ -33,6 +33,7 @@ export default function App() {
   const [shareOpen,    setShareOpen]    = useState(false);
   const toastTimerRef  = useRef(null);
   const deletedIdsRef  = useRef(new Set());
+  useEffect(() => () => clearTimeout(toastTimerRef.current), []);
 
   const handleLogout = useCallback(async () => {
     await auth.signOut();
@@ -50,7 +51,9 @@ export default function App() {
   // Restore stored session on mount (skip for shared links)
   useEffect(() => {
     if (sharedProject) { setAuthReady(true); return; }
-    auth.restoreSession().then(s => { setSession(s); setAuthReady(true); });
+    auth.restoreSession()
+      .then(s => { setSession(s); setAuthReady(true); })
+      .catch(() => { setAuthReady(true); });
   }, []);
 
   // Load projects once authenticated
@@ -155,6 +158,7 @@ export default function App() {
 
   const save = useCallback(async (projectToSave) => {
     if (!projectToSave?.name?.trim()) return;
+    if (deletedIdsRef.current.has(projectToSave.id)) return;
     const fittedPhotos = await fitPhotosToLimit(projectToSave.photos ?? []);
     const fittedVisitas = await Promise.all(
       (projectToSave.visitas ?? []).map(async v => ({
@@ -190,8 +194,8 @@ export default function App() {
   };
 
   const confirmDelete = () => {
-    if (delModal.step === 1) { setDelModal({ step: 2 }); return; }
-    const id = draft.id;
+    if (delModal.step === 1) { setDelModal(m => ({ ...m, step: 2 })); return; }
+    const id = delModal.id;
     deletedIdsRef.current.add(id);
     setProjects(prev => prev.filter(p => p.id !== id));
     setDelModal(null); setRoute({ view: "dash" });
@@ -231,7 +235,7 @@ export default function App() {
       {route.view === "proj" && draft && (
         <ProjectView draft={draft} isNew={isNew} upd={upd} setDraft={setDraft}
           onBack={() => setRoute({ view: "dash" })} onSave={save}
-          onDelete={() => setDelModal({ step: 1 })} onShare={() => setShareOpen(true)}
+          onDelete={() => setDelModal({ step: 1, id: draft.id })} onShare={() => setShareOpen(true)}
           contactForm={contactForm} setContactForm={setContactForm} saveContact={saveContact}
           syncing={syncing} syncError={syncError}
           onLogout={handleLogout} userEmail={userEmail} />

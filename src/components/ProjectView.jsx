@@ -40,7 +40,7 @@ export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSav
   const [tab, setTab] = useState("info");
   const timerRef = useRef(null);
   const draftRef = useRef(draft);
-  useEffect(() => { draftRef.current = draft; }, [draft]);
+  draftRef.current = draft;
 
   const draftKey = useMemo(() => {
     if (isNew || !draft?.name?.trim()) return null;
