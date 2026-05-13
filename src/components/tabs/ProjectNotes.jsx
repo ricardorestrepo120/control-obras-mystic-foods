@@ -104,7 +104,14 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false }
       <button onClick={() => onPatch({ done: !item.done })} style={{ width: 20, height: 20, borderRadius: 6, border: `1.5px solid ${item.done ? "var(--ok)" : "var(--bd-strong)"}`, background: item.done ? "var(--ok)" : "transparent", color: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
         {item.done && <I.Check size={12} sw={3} />}
       </button>
-      <input value={item.text} onChange={e => onPatch({ text: e.target.value })} style={{ flex: "1 1 160px", minWidth: 0, border: "none", background: "transparent", fontSize: 13, color: "var(--tx)", outline: "none", textDecoration: item.done ? "line-through" : "none" }} />
+      <input
+        value={item.text ?? ""}
+        onChange={e => onPatch({ text: e.target.value })}
+        placeholder="Escribe el pendiente…"
+        style={{ flex: "1 1 160px", minWidth: 0, border: "none", borderBottom: "1.5px solid transparent", background: "transparent", fontSize: 13, color: "var(--tx)", outline: "none", textDecoration: item.done ? "line-through" : "none", padding: "1px 0", transition: "border-color .12s" }}
+        onFocus={e => { e.currentTarget.style.borderBottomColor = "var(--accent)"; }}
+        onBlur={e  => { e.currentTarget.style.borderBottomColor = "transparent"; }}
+      />
       {!editAsgn && item.assignee && <button onClick={() => setEditAsgn(true)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px 3px 3px", fontSize: 11, fontWeight: 500, background: "var(--bg-elev)", color: "var(--tx-2)", border: "1px solid var(--bd)", borderRadius: 999, cursor: "pointer" }}><Avatar name={item.assignee} size={18} />{item.assignee}</button>}
       {!editAsgn && !item.assignee && <IconBtn icon={<I.User size={13} />} onClick={() => setEditAsgn(true)} title="Asignar" />}
       {editAsgn && <div style={fx({ gap: 4 })}><AssigneeInput value={item.assignee || ""} onChange={v => onPatch({ assignee: v })} suggestions={suggestions} compact autoFocus /><IconBtn icon={<I.Check size={13} />} onClick={() => setEditAsgn(false)} title="Listo" /></div>}
