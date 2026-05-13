@@ -82,6 +82,23 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, [sharedProject]);
 
+  // Auto-logout after 2 hours of inactivity (no click, keydown, or scroll)
+  useEffect(() => {
+    if (!session || sharedProject) return;
+    const IDLE_MS = 2 * 60 * 60_000;
+    let timer = setTimeout(handleLogout, IDLE_MS);
+    const reset = () => { clearTimeout(timer); timer = setTimeout(handleLogout, IDLE_MS); };
+    window.addEventListener("click",   reset);
+    window.addEventListener("keydown", reset);
+    window.addEventListener("scroll",  reset, { passive: true });
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("click",   reset);
+      window.removeEventListener("keydown", reset);
+      window.removeEventListener("scroll",  reset);
+    };
+  }, [session, sharedProject, handleLogout]);
+
   // Background polling every 30 s (only when authenticated and loaded)
   useEffect(() => {
     if (!loaded || sharedProject || !session) return;
