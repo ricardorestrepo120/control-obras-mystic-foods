@@ -118,7 +118,12 @@ export function migrate(raw) {
 
 export const encodeShare = p => {
   try {
-    const clean = { ...p, photos: (p.photos ?? []).map(ph => ({ ...ph, data: "" })) };
+    const clean = {
+      ...p,
+      photos: (p.photos ?? []).map(ph => ({ ...ph, data: "" })),
+      visitas: (p.visitas ?? []).map(v => ({ ...v, photos: (v.photos ?? []).map(ph => ({ ...ph, data: "" })) })),
+      mobiliario: (p.mobiliario ?? []).map(m => ({ ...m, foto: m.foto ? { ...m.foto, data: "" } : null })),
+    };
     const bytes = new TextEncoder().encode(JSON.stringify(clean));
     return btoa(Array.from(bytes, b => String.fromCharCode(b)).join(""));
   } catch (e) {

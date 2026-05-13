@@ -29,7 +29,7 @@ export default function ProjectApertura({ draft, upd, setDraft, readOnly = false
 
   const addItem = () => {
     if (!form.name.trim()) return;
-    upd("aperturaItems", [...items, { id: `ap-${crypto.randomUUID()}`, name: form.name.trim(), state: null, assignee: form.assignee.trim() || "" }]);
+    upd("aperturaItems", prev => [...prev, { id: `ap-${crypto.randomUUID()}`, name: form.name.trim(), state: null, assignee: form.assignee.trim() || "" }]);
     setForm({ name: "", assignee: "" }); setAdding(false);
   };
 
@@ -96,7 +96,7 @@ export default function ProjectApertura({ draft, upd, setDraft, readOnly = false
         )}
         {filtered.length === 0 && !adding && <Empty icon={<I.Key size={20} />} title="Sin items" hint="Agrega lo que debe estar listo para abrir el local" />}
         <div style={col({ gap: 6 })}>
-          {filtered.map(it => <AperturaRow key={it.id} item={it} suggestions={assignees} readOnly={readOnly} onState={s => toggleState(it.id, s)} onPatch={ch => patch(it.id, ch)} onRemove={() => upd("aperturaItems", items.filter(x => x.id !== it.id))} />)}
+          {filtered.map(it => <AperturaRow key={it.id} item={it} suggestions={assignees} readOnly={readOnly} onState={s => toggleState(it.id, s)} onPatch={ch => patch(it.id, ch)} onRemove={() => upd("aperturaItems", prev => prev.filter(x => x.id !== it.id))} />)}
         </div>
       </Card>
     </div>

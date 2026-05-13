@@ -101,7 +101,7 @@ export default function ProjectInfo({ draft, isNew, upd, contactForm, setContact
                 </div>
               </div>
               <IconBtn icon={<I.PenLine size={14} />} onClick={() => setContactForm({ ...c })} title="Editar" />
-              <IconBtn icon={<I.X size={14} />} onClick={() => upd("contacts", (draft.contacts ?? []).filter(x => x.id !== c.id))} title="Eliminar" />
+              <IconBtn icon={<I.X size={14} />} onClick={() => upd("contacts", prev => (prev ?? []).filter(x => x.id !== c.id))} title="Eliminar" />
             </div>
           ))}
         </div>

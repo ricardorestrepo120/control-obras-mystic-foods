@@ -203,13 +203,18 @@ export default function App() {
   const confirmDelete = () => {
     if (delModal.step === 1) { setDelModal(m => ({ ...m, step: 2 })); return; }
     const id = delModal.id;
+    const savedProject = projects.find(p => p.id === id) ?? null;
     deletedIdsRef.current.add(id);
     setProjects(prev => prev.filter(p => p.id !== id));
     setDelModal(null); setRoute({ view: "dash" });
     setSyncing(true);
     db.remove(id)
       .then(() => { setSyncError(false); showToast("Obra eliminada"); })
-      .catch(err => { setSyncError(true); showToast("Error al eliminar"); console.error(err); })
+      .catch(err => {
+        setSyncError(true); showToast("Error al eliminar. Intenta de nuevo."); console.error(err);
+        deletedIdsRef.current.delete(id);
+        if (savedProject) setProjects(prev => [...prev, savedProject]);
+      })
       .finally(() => setSyncing(false));
   };
 

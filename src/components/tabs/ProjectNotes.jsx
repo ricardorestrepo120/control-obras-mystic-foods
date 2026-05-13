@@ -28,7 +28,7 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
 
   const addItem = () => {
     if (!form.text.trim()) return;
-    upd("checklist", [...list, { id: `cl-${crypto.randomUUID()}`, text: form.text.trim(), done: false, assignee: form.assignee.trim() || "", reminder: form.rem ? { date: form.rem, time: form.time } : null }]);
+    upd("checklist", prev => [...prev, { id: `cl-${crypto.randomUUID()}`, text: form.text.trim(), done: false, assignee: form.assignee.trim() || "", reminder: form.rem ? { date: form.rem, time: form.time } : null }]);
     setForm({ text: "", rem: "", time: "", assignee: "" }); setAdding(false);
   };
   const patch = (id, ch) => upd("checklist", prev => prev.map(x => x.id === id ? { ...x, ...ch } : x));
@@ -74,10 +74,10 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
           </div>
         )}
         {filtered.length === 0 && !adding && <Empty icon={<I.Check size={20} />} title="Sin pendientes" hint="Agrega tareas para esta obra" />}
-        {pending.length > 0 && <div style={col({ gap: 6 })}>{pending.map(it => <ChecklistRow key={it.id} item={it} suggestions={assignees} readOnly={readOnly} onPatch={ch => patch(it.id, ch)} onRemove={() => upd("checklist", list.filter(x => x.id !== it.id))} />)}</div>}
+        {pending.length > 0 && <div style={col({ gap: 6 })}>{pending.map(it => <ChecklistRow key={it.id} item={it} suggestions={assignees} readOnly={readOnly} onPatch={ch => patch(it.id, ch)} onRemove={() => upd("checklist", prev => prev.filter(x => x.id !== it.id))} />)}</div>}
         {done.length > 0 && <>
           <div style={{ marginTop: 14, marginBottom: 8, fontSize: 11, fontWeight: 600, color: "var(--tx-3)", letterSpacing: .4, textTransform: "uppercase" }}>Completadas · {done.length}</div>
-          <div style={col({ gap: 6, opacity: .65 })}>{done.map(it => <ChecklistRow key={it.id} item={it} suggestions={assignees} readOnly={readOnly} onPatch={ch => patch(it.id, ch)} onRemove={() => upd("checklist", list.filter(x => x.id !== it.id))} />)}</div>
+          <div style={col({ gap: 6, opacity: .65 })}>{done.map(it => <ChecklistRow key={it.id} item={it} suggestions={assignees} readOnly={readOnly} onPatch={ch => patch(it.id, ch)} onRemove={() => upd("checklist", prev => prev.filter(x => x.id !== it.id))} />)}</div>
         </>}
       </Card>
     </div>

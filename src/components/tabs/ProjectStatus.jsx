@@ -30,7 +30,7 @@ export default function ProjectStatus({ draft, upd, setDraft, readOnly = false }
 
   const addItem = () => {
     if (!newName.trim()) return;
-    upd("statusItems", [...items, { id: `c-${Date.now()}`, name: newName.trim(), state: null, notes: "", custom: true }]);
+    upd("statusItems", prev => [...prev, { id: `c-${Date.now()}`, name: newName.trim(), state: null, notes: "", custom: true }]);
     setNewName(""); setAdding(false);
   };
 
@@ -71,7 +71,7 @@ export default function ProjectStatus({ draft, upd, setDraft, readOnly = false }
                 ? it.state ? <Pill token={ITEM_STATES.find(s => s.key === it.state)?.token} dot>{it.state}</Pill> : <span style={{ fontSize: 12, color: "var(--tx-4)" }}>Sin asignar</span>
                 : <div style={fx({ gap: 4, flexWrap: "wrap" })}>
                     {ITEM_STATES.map(s => { const active = it.state === s.key, c = tc(s.token); return <button key={s.key} onClick={() => toggleState(it.id, s.key)} style={{ padding: "5px 11px", fontSize: 12, fontWeight: 500, background: active ? c.bg : "transparent", color: active ? c.fg : "var(--tx-3)", border: `1px solid ${active ? "transparent" : "var(--bd)"}`, borderRadius: 999, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>{active && <span style={{ width: 6, height: 6, borderRadius: "50%", background: c.fg }} />}{s.key}</button>; })}
-                    {it.custom && <IconBtn icon={<I.Trash size={13} />} onClick={() => upd("statusItems", items.filter(x => x.id !== it.id))} title="Eliminar" danger />}
+                    {it.custom && <IconBtn icon={<I.Trash size={13} />} onClick={() => upd("statusItems", prev => prev.filter(x => x.id !== it.id))} title="Eliminar" danger />}
                   </div>}
             </div>
             {!readOnly && <Input value={it.notes || ""} onChange={e => { const v = e.target.value; upd("statusItems", prev => prev.map(x => x.id === it.id ? { ...x, notes: v } : x)); }} placeholder="Notas (opcional)" style={{ height: 34, fontSize: 12 }} />}
