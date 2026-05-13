@@ -166,10 +166,17 @@ export default function App() {
         photos: await fitPhotosToLimit(v.photos ?? []),
       }))
     );
-    const pToSave = { ...projectToSave, photos: fittedPhotos, visitas: fittedVisitas, _srv: new Date().toISOString() };
+    const fittedMobiliario = await Promise.all(
+      (projectToSave.mobiliario ?? []).map(async m => {
+        if (!m.foto) return m;
+        const [fitted] = await fitPhotosToLimit([m.foto]);
+        return { ...m, foto: fitted };
+      })
+    );
+    const pToSave = { ...projectToSave, photos: fittedPhotos, visitas: fittedVisitas, mobiliario: fittedMobiliario, _srv: new Date().toISOString() };
     setProjects(prev => prev.find(x => x.id === pToSave.id) ? prev.map(x => x.id === pToSave.id ? pToSave : x) : [...prev, pToSave]);
     // Guard: only update draft if user is still viewing this same project
-    setDraft(prev => prev?.id === pToSave.id ? { ...prev, photos: pToSave.photos, visitas: pToSave.visitas } : prev);
+    setDraft(prev => prev?.id === pToSave.id ? { ...prev, photos: pToSave.photos, visitas: pToSave.visitas, mobiliario: pToSave.mobiliario } : prev);
     setIsNew(false);
     setSyncing(true);
     db.save(pToSave)

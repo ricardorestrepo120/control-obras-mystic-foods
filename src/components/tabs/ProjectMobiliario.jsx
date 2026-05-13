@@ -45,14 +45,15 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
 
   const commitAdd = () => {
     if (!form.nombre.trim()) return;
-    upd("mobiliario", [...items, {
+    const newItem = {
       id: `mob-${crypto.randomUUID()}`,
       nombre: form.nombre.trim(),
       cantidad: Math.max(1, Number(form.cantidad) || 1),
       proveedor: form.proveedor.trim(),
       foto: form.foto,
       estado: form.estado,
-    }]);
+    };
+    upd("mobiliario", prev => [...prev, newItem]);
     setForm(freshForm()); setAdding(false);
   };
 
@@ -127,7 +128,7 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
             ) : (
               <ItemRow key={item.id} item={item} readOnly={readOnly}
                 onEdit={() => openEdit(item)}
-                onRemove={() => upd("mobiliario", items.filter(x => x.id !== item.id))}
+                onRemove={() => upd("mobiliario", prev => prev.filter(x => x.id !== item.id))}
                 onToggle={() => patch(item.id, { estado: item.estado === "Listo" ? "Pendiente" : "Listo" })}
               />
             )
