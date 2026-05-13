@@ -17,8 +17,8 @@ import { col, fx, fmtDate, fmtDateLong, parseLocalDate } from '../lib/utils.js';
 const SHARED_TABS = [
   { id: "info",     label: "Información", Icon: p => <I.DocText  {...p} /> },
   { id: "status",   label: "Preliminares",Icon: p => <I.Layers   {...p} /> },
-  { id: "notes",    label: "Notas",       Icon: p => <I.PenLine  {...p} /> },
-  { id: "bitacora",    label: "Bitácora",    Icon: p => <I.Notebook {...p} /> },
+  { id: "notes",    label: "Pendientes",  Icon: p => <I.PenLine  {...p} /> },
+  { id: "bitacora",    label: "Visitas",     Icon: p => <I.Notebook {...p} /> },
   { id: "cronograma", label: "Cronograma",  Icon: p => <I.Calendar {...p} /> },
   { id: "apertura",   label: "Apertura",    Icon: p => <I.Key      {...p} /> },
   { id: "history",  label: "Historial",   Icon: p => <I.Activity {...p} /> },
@@ -81,7 +81,7 @@ function SharedInfoView({ project }) {
   return (
     <div style={col({ gap: 14 })}>
       {project.notes && (
-        <Card><SecLabel>Notas</SecLabel><div style={{ fontSize: 13, color: "var(--tx)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{project.notes}</div></Card>
+        <Card><SecLabel>Pendientes</SecLabel><div style={{ fontSize: 13, color: "var(--tx)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{project.notes}</div></Card>
       )}
       {(project.contacts ?? []).length > 0 && (
         <Card>
