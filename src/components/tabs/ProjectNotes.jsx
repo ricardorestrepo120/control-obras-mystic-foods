@@ -36,18 +36,20 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
     const valid = Array.from(files).filter(f => f.type.startsWith("image/"));
     if (!valid.length) return;
     setFormUploading(true);
+    const newPhotos = [];
     try {
-      const newPhotos = await Promise.all(valid.map(async f => {
+      for (const f of valid) {
         const photoId = `ph-${crypto.randomUUID()}`;
         console.log(`[notes-form] archivo: ${f.name} | tipo:${f.type} | tamaño:${(f.size/1024).toFixed(0)}KB`);
         const dataUrl = await compressImage(f);
         console.log(`[notes-form] comprimida: ${(dataUrl.length/1024).toFixed(0)}KB base64`);
         const url = await storage.upload(dataUrl, draft.id, photoId);
-        return { id: photoId, name: f.name, url, storagePath: `${draft.id}/${photoId}.jpg`, uploadedAt: Date.now() };
-      }));
+        newPhotos.push({ id: photoId, name: f.name, url, storagePath: `${draft.id}/${photoId}.jpg`, uploadedAt: Date.now() });
+      }
       setForm(f => ({ ...f, photos: [...f.photos, ...newPhotos] }));
     } catch (e) {
       console.error("[notes-form] ❌ upload error:", e);
+      if (newPhotos.length) storage.remove(newPhotos.map(p => p.storagePath)).catch(console.error);
     } finally {
       setFormUploading(false);
     }
@@ -171,18 +173,20 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false, 
     const valid = Array.from(files).filter(f => f.type.startsWith("image/"));
     if (!valid.length) return;
     setUploading(true);
+    const newPhotos = [];
     try {
-      const newPhotos = await Promise.all(valid.map(async f => {
+      for (const f of valid) {
         const photoId = `ph-${crypto.randomUUID()}`;
         console.log(`[notes-row] archivo: ${f.name} | tipo:${f.type} | tamaño:${(f.size/1024).toFixed(0)}KB`);
         const dataUrl = await compressImage(f);
         console.log(`[notes-row] comprimida: ${(dataUrl.length/1024).toFixed(0)}KB base64`);
         const url = await storage.upload(dataUrl, projectId, photoId);
-        return { id: photoId, name: f.name, url, storagePath: `${projectId}/${photoId}.jpg`, uploadedAt: Date.now() };
-      }));
+        newPhotos.push({ id: photoId, name: f.name, url, storagePath: `${projectId}/${photoId}.jpg`, uploadedAt: Date.now() });
+      }
       onPatch({ photos: [...photos, ...newPhotos] });
     } catch (e) {
       console.error("[notes-row] ❌ upload error:", e);
+      if (newPhotos.length) storage.remove(newPhotos.map(p => p.storagePath)).catch(console.error);
     } finally {
       setUploading(false);
     }

@@ -18,18 +18,22 @@ export default function ProjectPhotos({ draft, setDraft }) {
     const valid = Array.from(files).filter(f => f.type.startsWith("image/"));
     if (!valid.length) return;
     setUploading(true); setSizeWarn("");
+    // Sequential upload: if one file fails, clean up the ones already uploaded
+    // (Promise.all would leave partial uploads orphaned in Storage)
+    const newPhotos = [];
     try {
-      const newPhotos = await Promise.all(valid.map(async f => {
+      for (const f of valid) {
         const photoId = `ph-${crypto.randomUUID()}`;
         console.log(`[photos] archivo: ${f.name} | tipo:${f.type} | tamaño:${(f.size/1024).toFixed(0)}KB`);
         const dataUrl = await compressImage(f);
         console.log(`[photos] comprimida: ${(dataUrl.length/1024).toFixed(0)}KB base64`);
         const url = await storage.upload(dataUrl, draft.id, photoId);
-        return { id: photoId, name: f.name, url, storagePath: `${draft.id}/${photoId}.jpg`, uploadedAt: Date.now(), caption: "" };
-      }));
+        newPhotos.push({ id: photoId, name: f.name, url, storagePath: `${draft.id}/${photoId}.jpg`, uploadedAt: Date.now(), caption: "" });
+      }
       setDraft(d => ({ ...d, photos: [...(d.photos ?? []), ...newPhotos] }));
     } catch (e) {
       console.error("[photos] ❌ upload error:", e);
+      if (newPhotos.length) storage.remove(newPhotos.map(p => p.storagePath)).catch(console.error);
       setSizeWarn(`Error al subir foto: ${e.message}`);
       clearTimeout(sizeWarnTimerRef.current);
       sizeWarnTimerRef.current = setTimeout(() => setSizeWarn(""), 4000);

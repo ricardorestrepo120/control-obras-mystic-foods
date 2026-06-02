@@ -49,20 +49,31 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
     setUploading(true);
     clearTimeout(uploadErrTimerRef.current);
     setUploadErr("");
+    // Sequential upload: check gen inside loop so a cancel mid-upload
+    // immediately cleans up already-uploaded Storage objects.
+    const added = [];
     try {
-      const added = await Promise.all(valid.map(async f => {
+      for (const f of valid) {
+        if (gen !== genRef.current) {
+          if (added.length) storage.remove(added.map(p => p.storagePath)).catch(console.error);
+          return;
+        }
         const photoId = `vph-${crypto.randomUUID()}`;
         console.log(`[bitacora] archivo: ${f.name} | tipo:${f.type} | tamaño:${(f.size/1024).toFixed(0)}KB`);
         const dataUrl = await compressImage(f);
         console.log(`[bitacora] comprimida: ${(dataUrl.length/1024).toFixed(0)}KB base64`);
         const url = await storage.upload(dataUrl, draft.id, photoId);
-        return { id: photoId, name: f.name, url, storagePath: `${draft.id}/${photoId}.jpg`, uploadedAt: Date.now() };
-      }));
-      if (gen !== genRef.current) return;
+        added.push({ id: photoId, name: f.name, url, storagePath: `${draft.id}/${photoId}.jpg`, uploadedAt: Date.now() });
+      }
+      if (gen !== genRef.current) {
+        if (added.length) storage.remove(added.map(p => p.storagePath)).catch(console.error);
+        return;
+      }
       setFormPhotos(prev => [...prev, ...added]);
     } catch (err) {
       if (gen !== genRef.current) return;
       console.error("[bitacora] ❌ upload error:", err);
+      if (added.length) storage.remove(added.map(p => p.storagePath)).catch(console.error);
       setUploadErr(`Error al subir foto: ${err.message}`);
       uploadErrTimerRef.current = setTimeout(() => setUploadErr(""), 3000);
     } finally {
