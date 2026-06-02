@@ -137,8 +137,8 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
 function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false }) {
   const [editRem,  setEditRem]  = useState(false);
   const [editAsgn, setEditAsgn] = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [lightbox, setLightbox] = useState(null);
   const fileInputRef = useRef(null);
   const due = item.reminder?.date ? daysUntil(item.reminder.date) : null;
   const remToken = (!item.done && due !== null && due < 0) ? "danger" : (!item.done && due !== null && due <= 3) ? "warn" : "info";
@@ -163,73 +163,92 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false }
     }
   };
 
-  const removePhoto = id => onPatch({ photos: photos.filter(p => p.id !== id) });
+  const removePhoto = id => {
+    setLightbox(lb => lb === null ? null : photos.length <= 1 ? null : Math.min(lb, photos.length - 2));
+    onPatch({ photos: photos.filter(p => p.id !== id) });
+  };
 
-  const chevronStyle = { transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .15s" };
+  useEffect(() => {
+    if (lightbox === null || photos.length === 0) return;
+    const onKey = e => {
+      if (e.key === "ArrowLeft")  { e.preventDefault(); setLightbox(l => (l - 1 + photos.length) % photos.length); }
+      if (e.key === "ArrowRight") { e.preventDefault(); setLightbox(l => (l + 1) % photos.length); }
+      if (e.key === "Escape") setLightbox(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox, photos.length]);
+
+  const Lightbox = lightbox !== null && photos[lightbox] ? (
+    <div onClick={() => setLightbox(null)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.93)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", alignItems: "center", maxWidth: "90vw", gap: 10 }}>
+        <img src={photos[lightbox].data} alt={photos[lightbox].name} style={{ maxWidth: "82vw", maxHeight: "72vh", objectFit: "contain", borderRadius: 8, display: "block" }} />
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,.35)", letterSpacing: .5 }}>{lightbox + 1} / {photos.length}</div>
+      </div>
+      {photos.length > 1 && <>
+        <button onClick={e => { e.stopPropagation(); setLightbox(l => (l - 1 + photos.length) % photos.length); }} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,.13)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I.ArrowL size={20} /></button>
+        <button onClick={e => { e.stopPropagation(); setLightbox(l => (l + 1) % photos.length); }} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,.13)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I.ArrowR size={20} /></button>
+      </>}
+      <button onClick={() => setLightbox(null)} style={{ position: "absolute", top: 14, right: 14, width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,.13)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><I.X size={16} /></button>
+    </div>
+  ) : null;
 
   if (readOnly) return (
-    <div style={col({ background: "var(--bg-soft)", borderRadius: 10, overflow: "hidden" })}>
-      <div style={fx({ gap: 10, padding: "10px 12px", flexWrap: "wrap" })}>
-        <div style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${item.done ? "var(--ok)" : "var(--bd-strong)"}`, background: item.done ? "var(--ok)" : "transparent", color: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{item.done && <I.Check size={11} sw={3} />}</div>
-        <div style={{ flex: 1, fontSize: 13, color: "var(--tx)", textDecoration: item.done ? "line-through" : "none" }}>{item.text}</div>
-        {item.assignee && <span style={fx({ gap: 5, fontSize: 11, color: "var(--tx-3)" })}><Avatar name={item.assignee} size={18} />{item.assignee}</span>}
-        {item.reminder?.date && <Pill token={due !== null && due < 0 && !item.done ? "danger" : "info"} size="sm">{fmtDate(item.reminder.date)}</Pill>}
+    <>
+      <div style={col({ background: "var(--bg-soft)", borderRadius: 10, overflow: "hidden" })}>
+        <div style={fx({ gap: 10, padding: "10px 12px", flexWrap: "wrap" })}>
+          <div style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${item.done ? "var(--ok)" : "var(--bd-strong)"}`, background: item.done ? "var(--ok)" : "transparent", color: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{item.done && <I.Check size={11} sw={3} />}</div>
+          <div style={{ flex: 1, fontSize: 13, color: "var(--tx)", textDecoration: item.done ? "line-through" : "none" }}>{item.text}</div>
+          {item.assignee && <span style={fx({ gap: 5, fontSize: 11, color: "var(--tx-3)" })}><Avatar name={item.assignee} size={18} />{item.assignee}</span>}
+          {item.reminder?.date && <Pill token={due !== null && due < 0 && !item.done ? "danger" : "info"} size="sm">{fmtDate(item.reminder.date)}</Pill>}
+        </div>
         {hasExtra && (
-          <button onClick={() => setExpanded(e => !e)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--tx-3)", display: "flex", alignItems: "center", padding: 2, borderRadius: 4 }}>
-            <I.ChevronD size={14} style={chevronStyle} />
-          </button>
+          <div style={{ borderTop: "1px solid var(--bd)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+            {comment.trim() && <div style={{ fontSize: 13, color: "var(--tx-2)", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{comment}</div>}
+            {photos.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 8 }}>
+                {photos.map((ph, idx) => (
+                  <div key={ph.id} onClick={() => setLightbox(idx)} style={{ aspectRatio: "4/3", backgroundImage: `url(${ph.data})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: 8, cursor: "zoom-in" }} />
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
-      {expanded && hasExtra && (
-        <div style={{ borderTop: "1px solid var(--bd)", padding: "10px 12px", gap: 10, display: "flex", flexDirection: "column" }}>
-          {comment.trim() && <div style={{ fontSize: 13, color: "var(--tx-2)", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{comment}</div>}
-          {photos.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 8 }}>
-              {photos.map(ph => (
-                <div key={ph.id} style={{ aspectRatio: "4/3", backgroundImage: `url(${ph.data})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: 8 }} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+      {Lightbox}
+    </>
   );
 
   return (
-    <div style={col({ background: "var(--bg-soft)", borderRadius: 10, overflow: "hidden" })}>
-      <div style={fx({ gap: 8, padding: "10px 12px", flexWrap: "wrap" })}>
-        <button onClick={() => onPatch({ done: !item.done })} style={{ width: 20, height: 20, borderRadius: 6, border: `1.5px solid ${item.done ? "var(--ok)" : "var(--bd-strong)"}`, background: item.done ? "var(--ok)" : "transparent", color: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-          {item.done && <I.Check size={12} sw={3} />}
-        </button>
-        <input
-          value={item.text ?? ""}
-          onChange={e => onPatch({ text: e.target.value })}
-          placeholder="Escribe el pendiente…"
-          style={{ flex: "1 1 160px", minWidth: 0, border: "none", borderBottom: "1.5px solid transparent", background: "transparent", fontSize: 13, color: "var(--tx)", outline: "none", textDecoration: item.done ? "line-through" : "none", padding: "1px 0", transition: "border-color .12s" }}
-          onFocus={e => { e.currentTarget.style.borderBottomColor = "var(--accent)"; }}
-          onBlur={e  => { e.currentTarget.style.borderBottomColor = "transparent"; }}
-        />
-        {!editAsgn && item.assignee && <button onClick={() => setEditAsgn(true)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px 3px 3px", fontSize: 11, fontWeight: 500, background: "var(--bg-elev)", color: "var(--tx-2)", border: "1px solid var(--bd)", borderRadius: 999, cursor: "pointer" }}><Avatar name={item.assignee} size={18} />{item.assignee}</button>}
-        {!editAsgn && !item.assignee && <IconBtn icon={<I.User size={13} />} onClick={() => setEditAsgn(true)} title="Asignar" />}
-        {editAsgn && <div style={fx({ gap: 4 })}><AssigneeInput value={item.assignee || ""} onChange={v => onPatch({ assignee: v })} suggestions={suggestions} compact autoFocus /><IconBtn icon={<I.Check size={13} />} onClick={() => setEditAsgn(false)} title="Listo" /></div>}
-        {!editRem && item.reminder?.date && <button onClick={() => setEditRem(true)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", fontSize: 11, fontWeight: 500, background: tc(remToken).bg, color: tc(remToken).fg, border: "none", borderRadius: 999, cursor: "pointer" }}><I.Calendar size={10} />{fmtDate(item.reminder.date)}{item.reminder.time && ` ${item.reminder.time}`}</button>}
-        {!editRem && !item.reminder?.date && <IconBtn icon={<I.Calendar size={13} />} onClick={() => setEditRem(true)} title="Recordatorio" />}
-        {editRem && (
-          <div style={fx({ gap: 4 })}>
-            <Input type="date" value={item.reminder?.date || ""} onChange={e => onPatch({ reminder: { ...item.reminder, date: e.target.value } })} style={{ height: 28, fontSize: 11, padding: "0 6px" }} />
-            <Input type="time" value={item.reminder?.time || ""} onChange={e => onPatch({ reminder: { ...item.reminder, time: e.target.value } })} style={{ height: 28, fontSize: 11, padding: "0 6px", width: 80 }} />
-            {item.reminder?.date && <IconBtn icon={<I.X size={12} />} onClick={() => { onPatch({ reminder: null }); setEditRem(false); }} title="Quitar" />}
-            <IconBtn icon={<I.Check size={13} />} onClick={() => setEditRem(false)} title="Listo" />
-          </div>
-        )}
-        <IconBtn
-          icon={<I.ChevronD size={13} style={chevronStyle} />}
-          onClick={() => setExpanded(e => !e)}
-          title={expanded ? "Colapsar" : "Fotos y comentario"}
-        />
-        <IconBtn icon={<I.Trash size={13} />} onClick={onRemove} title="Eliminar" />
-      </div>
-      {expanded && (
+    <>
+      <div style={col({ background: "var(--bg-soft)", borderRadius: 10, overflow: "hidden" })}>
+        <div style={fx({ gap: 8, padding: "10px 12px", flexWrap: "wrap" })}>
+          <button onClick={() => onPatch({ done: !item.done })} style={{ width: 20, height: 20, borderRadius: 6, border: `1.5px solid ${item.done ? "var(--ok)" : "var(--bd-strong)"}`, background: item.done ? "var(--ok)" : "transparent", color: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+            {item.done && <I.Check size={12} sw={3} />}
+          </button>
+          <input
+            value={item.text ?? ""}
+            onChange={e => onPatch({ text: e.target.value })}
+            placeholder="Escribe el pendiente…"
+            style={{ flex: "1 1 160px", minWidth: 0, border: "none", borderBottom: "1.5px solid transparent", background: "transparent", fontSize: 13, color: "var(--tx)", outline: "none", textDecoration: item.done ? "line-through" : "none", padding: "1px 0", transition: "border-color .12s" }}
+            onFocus={e => { e.currentTarget.style.borderBottomColor = "var(--accent)"; }}
+            onBlur={e  => { e.currentTarget.style.borderBottomColor = "transparent"; }}
+          />
+          {!editAsgn && item.assignee && <button onClick={() => setEditAsgn(true)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px 3px 3px", fontSize: 11, fontWeight: 500, background: "var(--bg-elev)", color: "var(--tx-2)", border: "1px solid var(--bd)", borderRadius: 999, cursor: "pointer" }}><Avatar name={item.assignee} size={18} />{item.assignee}</button>}
+          {!editAsgn && !item.assignee && <IconBtn icon={<I.User size={13} />} onClick={() => setEditAsgn(true)} title="Asignar" />}
+          {editAsgn && <div style={fx({ gap: 4 })}><AssigneeInput value={item.assignee || ""} onChange={v => onPatch({ assignee: v })} suggestions={suggestions} compact autoFocus /><IconBtn icon={<I.Check size={13} />} onClick={() => setEditAsgn(false)} title="Listo" /></div>}
+          {!editRem && item.reminder?.date && <button onClick={() => setEditRem(true)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", fontSize: 11, fontWeight: 500, background: tc(remToken).bg, color: tc(remToken).fg, border: "none", borderRadius: 999, cursor: "pointer" }}><I.Calendar size={10} />{fmtDate(item.reminder.date)}{item.reminder.time && ` ${item.reminder.time}`}</button>}
+          {!editRem && !item.reminder?.date && <IconBtn icon={<I.Calendar size={13} />} onClick={() => setEditRem(true)} title="Recordatorio" />}
+          {editRem && (
+            <div style={fx({ gap: 4 })}>
+              <Input type="date" value={item.reminder?.date || ""} onChange={e => onPatch({ reminder: { ...item.reminder, date: e.target.value } })} style={{ height: 28, fontSize: 11, padding: "0 6px" }} />
+              <Input type="time" value={item.reminder?.time || ""} onChange={e => onPatch({ reminder: { ...item.reminder, time: e.target.value } })} style={{ height: 28, fontSize: 11, padding: "0 6px", width: 80 }} />
+              {item.reminder?.date && <IconBtn icon={<I.X size={12} />} onClick={() => { onPatch({ reminder: null }); setEditRem(false); }} title="Quitar" />}
+              <IconBtn icon={<I.Check size={13} />} onClick={() => setEditRem(false)} title="Listo" />
+            </div>
+          )}
+          <IconBtn icon={<I.Trash size={13} />} onClick={onRemove} title="Eliminar" />
+        </div>
         <div style={{ borderTop: "1px solid var(--bd)", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
           <textarea
             value={comment}
@@ -240,34 +259,23 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false }
             onFocus={e => { e.currentTarget.style.borderColor = "var(--accent)"; }}
             onBlur={e  => { e.currentTarget.style.borderColor = "var(--bd)"; }}
           />
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={e => { uploadPhotos(e.target.files); e.target.value = ""; }}
-          />
+          <input ref={fileInputRef} type="file" multiple accept="image/*" style={{ display: "none" }} onChange={e => { uploadPhotos(e.target.files); e.target.value = ""; }} />
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start" }}>
-            {photos.map(ph => (
+            {photos.map((ph, idx) => (
               <div key={ph.id} style={{ position: "relative", width: 88, height: 66, borderRadius: 8, overflow: "hidden", flexShrink: 0, border: "1px solid var(--bd)" }}>
-                <div style={{ width: "100%", height: "100%", backgroundImage: `url(${ph.data})`, backgroundSize: "cover", backgroundPosition: "center" }} />
-                <button
-                  onClick={() => removePhoto(ph.id)}
-                  style={{ position: "absolute", top: 3, right: 3, width: 18, height: 18, borderRadius: "50%", background: "rgba(0,0,0,0.65)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div onClick={() => setLightbox(idx)} style={{ width: "100%", height: "100%", backgroundImage: `url(${ph.data})`, backgroundSize: "cover", backgroundPosition: "center", cursor: "zoom-in" }} />
+                <button onClick={() => removePhoto(ph.id)} style={{ position: "absolute", top: 3, right: 3, width: 18, height: 18, borderRadius: "50%", background: "rgba(0,0,0,0.65)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <I.X size={9} />
                 </button>
               </div>
             ))}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              style={{ width: 88, height: 66, borderRadius: 8, border: "1.5px dashed var(--bd-strong)", background: "var(--bg-elev)", color: "var(--tx-3)", cursor: uploading ? "wait" : "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 11, flexShrink: 0, opacity: uploading ? 0.6 : 1 }}>
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} style={{ width: 88, height: 66, borderRadius: 8, border: "1.5px dashed var(--bd-strong)", background: "var(--bg-elev)", color: "var(--tx-3)", cursor: uploading ? "wait" : "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 11, flexShrink: 0, opacity: uploading ? 0.6 : 1 }}>
               {uploading ? <span style={{ fontSize: 13, fontWeight: 600 }}>…</span> : <><I.Camera size={15} /><span>Foto</span></>}
             </button>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+      {Lightbox}
+    </>
   );
 }
