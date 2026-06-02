@@ -94,6 +94,7 @@ export function makeProject() {
     name: "", brand: BRANDS[0].id, localNumber: "", localArea: "",
     status: "En planificación", startDate: "", openingDate: "", notes: "",
     createdAt: Date.now(),
+    archived: false,
     contacts: [],
     statusItems: DEFAULT_ITEMS.map(n => ({ id: n, name: n, state: null, notes: "" })),
     checklist: [], aperturaItems: [], history: [], photos: [], visitas: [], mobiliario: [],
@@ -104,6 +105,7 @@ export function makeProject() {
 
 export function migrate(raw) {
   const o = { ...raw };
+  if (o.archived == null) o.archived = false;
   if (!Array.isArray(o.contacts))        o.contacts = [];
   if (!Array.isArray(o.checklist))       o.checklist = [];
   if (!Array.isArray(o.aperturaItems))   o.aperturaItems = [];

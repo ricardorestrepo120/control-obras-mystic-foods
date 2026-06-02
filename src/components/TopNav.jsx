@@ -3,7 +3,7 @@ import BrandChip from './ui/BrandChip.jsx';
 import { I } from './icons/index.jsx';
 import { fx } from '../lib/utils.js';
 
-export default function TopNav({ onNew, onBack, project, isNew, onSave, onDelete, onShare, canSave, syncing, syncError, onLogout, userEmail }) {
+export default function TopNav({ onNew, onBack, project, isNew, onSave, onDelete, onArchive, onShare, canSave, isArchived, syncing, syncError, onLogout, userEmail }) {
   const sc = syncError ? "var(--danger)" : syncing ? "var(--warn)" : "var(--ok)";
   const sl = syncError ? "Sin conexión" : syncing ? "Guardando…" : "Sincronizado";
   return (
@@ -29,8 +29,12 @@ export default function TopNav({ onNew, onBack, project, isNew, onSave, onDelete
         {onLogout && <Btn variant="ghost" size="sm" icon={<I.LogOut size={14} />} onClick={onLogout} title={userEmail ?? "Cerrar sesión"}>Salir</Btn>}
         {!project && <Btn variant="primary" size="sm" icon={<I.Plus size={14} />} onClick={onNew}>Nueva obra</Btn>}
         {project && !isNew && onShare && <Btn variant="ghost" size="sm" icon={<I.Share size={14} />} onClick={onShare} title="Compartir" />}
+        {project && !isNew && onArchive && (
+          <Btn variant="ghost" size="sm" icon={<I.Archive size={14} />} onClick={onArchive}
+            title={isArchived ? "Desarchivar" : "Archivar"} />
+        )}
         {project && !isNew && <Btn variant="ghost" size="sm" icon={<I.Trash size={14} />} onClick={onDelete} title="Eliminar" />}
-        {project && <Btn variant="primary" size="sm" icon={<I.Check size={14} />} onClick={onSave} disabled={!canSave}>{isNew ? "Crear" : "Guardar"}</Btn>}
+        {project && !isArchived && <Btn variant="primary" size="sm" icon={<I.Check size={14} />} onClick={onSave} disabled={!canSave}>{isNew ? "Crear" : "Guardar"}</Btn>}
       </div>
     </div>
   );

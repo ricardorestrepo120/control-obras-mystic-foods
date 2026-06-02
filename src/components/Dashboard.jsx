@@ -19,9 +19,18 @@ const SORT_OPTS = [
   { key: "brand",       label: "Marca"    },
 ];
 
-export default function Dashboard({ projects, onOpen, onNew, filter, setFilter, sortBy, setSortBy, query, setQuery, syncing, syncError, onLogout, userEmail }) {
+const ARCHIVE_OPTS = [
+  { key: "active",   label: "Activas"    },
+  { key: "archived", label: "Archivadas" },
+  { key: "all",      label: "Todas"      },
+];
+
+export default function Dashboard({ projects, onOpen, onNew, filter, setFilter, sortBy, setSortBy, query, setQuery, archiveView, setArchiveView, syncing, syncError, onLogout, userEmail }) {
   const list = useMemo(() => {
-    let r = filter === "all" ? projects : projects.filter(p => p.brand === filter);
+    let r = projects;
+    if (archiveView === "active")   r = r.filter(p => !p.archived);
+    else if (archiveView === "archived") r = r.filter(p => p.archived);
+    if (filter !== "all") r = r.filter(p => p.brand === filter);
     if (query.trim()) { const q = query.toLowerCase(); r = r.filter(p => (p.name ?? "").toLowerCase().includes(q) || p.localNumber?.toLowerCase().includes(q)); }
     return [...r].sort((a, b) => {
       if (sortBy === "name") return a.name.localeCompare(b.name);
@@ -29,12 +38,15 @@ export default function Dashboard({ projects, onOpen, onNew, filter, setFilter, 
       if (sortBy === "openingDate") { if (!a.openingDate) return 1; if (!b.openingDate) return -1; return a.openingDate.localeCompare(b.openingDate); }
       return b.createdAt - a.createdAt;
     });
-  }, [projects, filter, sortBy, query]);
+  }, [projects, filter, archiveView, sortBy, query]);
 
-  const brandCards = useMemo(() => [
-    ...BRANDS.map(b => ({ ...b, count: projects.filter(p => p.brand === b.id).length })),
-    { id: "all", name: "Total", accent: "var(--tx-3)", count: projects.length },
-  ], [projects]);
+  const brandCards = useMemo(() => {
+    const active = projects.filter(p => !p.archived);
+    return [
+      ...BRANDS.map(b => ({ ...b, count: active.filter(p => p.brand === b.id).length })),
+      { id: "all", name: "Total", accent: "var(--tx-3)", count: active.length },
+    ];
+  }, [projects]);
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -61,6 +73,11 @@ export default function Dashboard({ projects, onOpen, onNew, filter, setFilter, 
             <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar obra…" style={{ paddingLeft: 32 }} />
           </div>
           <div style={fx({ gap: 2, background: "var(--bg-elev)", border: "1px solid var(--bd)", borderRadius: 8, padding: 2 })}>
+            {ARCHIVE_OPTS.map(o => (
+              <button key={o.key} onClick={() => setArchiveView(o.key)} style={{ padding: "5px 10px", fontSize: 12, fontWeight: 500, background: archiveView === o.key ? "var(--bg-soft)" : "transparent", color: archiveView === o.key ? "var(--tx)" : "var(--tx-3)", border: "none", borderRadius: 6, cursor: "pointer" }}>{o.label}</button>
+            ))}
+          </div>
+          <div style={fx({ gap: 2, background: "var(--bg-elev)", border: "1px solid var(--bd)", borderRadius: 8, padding: 2 })}>
             {SORT_OPTS.map(o => (
               <button key={o.key} onClick={() => setSortBy(o.key)} style={{ padding: "5px 10px", fontSize: 12, fontWeight: 500, background: sortBy === o.key ? "var(--bg-soft)" : "transparent", color: sortBy === o.key ? "var(--tx)" : "var(--tx-3)", border: "none", borderRadius: 6, cursor: "pointer" }}>{o.label}</button>
             ))}
@@ -80,23 +97,26 @@ export default function Dashboard({ projects, onOpen, onNew, filter, setFilter, 
 function ProjectCard({ project, onClick }) {
   const b = getBrand(project.brand);
   const pct = calcProgress(project);
+  const isArchived = !!project.archived;
   const recent = (() => {
     const ts = Math.max(
       project._srv ? new Date(project._srv).getTime() : 0,
       project.history?.[0]?.t ?? 0,
     );
-    return ts > 0 && Date.now() - ts < 4 * 60 * 60_000;
+    return !isArchived && ts > 0 && Date.now() - ts < 4 * 60 * 60_000;
   })();
   return (
     <div onClick={onClick} className="fu"
-      style={{ background: "var(--bg-elev)", border: "1px solid var(--bd)", borderRadius: 12, padding: 16, cursor: "pointer", position: "relative", overflow: "hidden", transition: T }}
+      style={{ background: "var(--bg-elev)", border: "1px solid var(--bd)", borderRadius: 12, padding: 16, cursor: "pointer", position: "relative", overflow: "hidden", transition: T, opacity: isArchived ? 0.55 : 1 }}
       onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = "var(--bd-strong)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.05)"; }}
       onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = "var(--bd)"; e.currentTarget.style.boxShadow = "none"; }}>
-      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: b.accent }} />
+      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: isArchived ? "var(--tx-3)" : b.accent }} />
       {recent && <div style={{ position: "absolute", top: 10, right: 10, width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 0 2px var(--bg-elev)" }} />}
       <div style={fx({ justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, gap: 8 })}>
         <BrandChip id={project.brand} />
-        <Pill token={STATUS_TOKEN[project.status]} size="sm" dot>{project.status}</Pill>
+        {isArchived
+          ? <span style={{ fontSize: 10, fontWeight: 600, color: "var(--tx-3)", background: "var(--bg-soft)", borderRadius: 5, padding: "3px 7px", letterSpacing: .3, textTransform: "uppercase" }}>Archivada</span>
+          : <Pill token={STATUS_TOKEN[project.status]} size="sm" dot>{project.status}</Pill>}
       </div>
       <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tx)", marginBottom: project.localNumber ? 2 : 10, letterSpacing: -.3 }}>{project.name || "Sin nombre"}</div>
       {project.localNumber && <div style={{ fontSize: 12, color: "var(--tx-3)", marginBottom: 10 }}>{project.localNumber}{project.localArea ? ` · ${project.localArea}` : ""}</div>}

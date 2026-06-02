@@ -25,11 +25,13 @@ export default function App() {
   const [draft,        setDraft]        = useState(null);
   const [isNew,        setIsNew]        = useState(false);
   const [filter,       setFilter]       = useState("all");
+  const [archiveView,  setArchiveView]  = useState("active");
   const [sortBy,       setSortBy]       = useState("createdAt");
   const [query,        setQuery]        = useState("");
   const [contactForm,  setContactForm]  = useState(null);
   const [toast,        setToast]        = useState({ show: false, text: "" });
   const [delModal,     setDelModal]     = useState(null);
+  const [archiveModal, setArchiveModal] = useState(null);
   const [shareOpen,    setShareOpen]    = useState(false);
   const toastTimerRef  = useRef(null);
   const deletedIdsRef  = useRef(new Set());
@@ -44,6 +46,7 @@ export default function App() {
     setIsNew(false);
     setRoute({ view: "dash" });
     setDelModal(null);
+    setArchiveModal(null);
     setShareOpen(false);
     setContactForm(null);
     deletedIdsRef.current.clear();
@@ -201,6 +204,23 @@ export default function App() {
     setContactForm(null);
   };
 
+  const confirmArchive = useCallback(() => {
+    if (!archiveModal) return;
+    const { id, archived } = archiveModal;
+    const newArchived = !archived;
+    setArchiveModal(null);
+    const proj = projects.find(p => p.id === id);
+    if (!proj) return;
+    const toSave = { ...proj, archived: newArchived, _srv: new Date().toISOString() };
+    setProjects(prev => prev.map(p => p.id === id ? toSave : p));
+    setDraft(d => d?.id === id ? { ...d, archived: newArchived } : d);
+    setSyncing(true);
+    db.save(toSave)
+      .then(() => { setSyncError(false); showToast(newArchived ? "Obra archivada" : "Obra desarchivada"); })
+      .catch(err => { setSyncError(true); showToast("Error al guardar. Intenta de nuevo."); console.error(err); })
+      .finally(() => setSyncing(false));
+  }, [archiveModal, projects, showToast]);
+
   const confirmDelete = () => {
     if (delModal.step === 1) { setDelModal(m => ({ ...m, step: 2 })); return; }
     const id = delModal.id;
@@ -241,19 +261,45 @@ export default function App() {
     <div>
       {route.view === "dash" && (
         <Dashboard projects={projects} onOpen={openProject} onNew={newProject}
-          filter={filter} setFilter={setFilter} sortBy={sortBy} setSortBy={setSortBy}
+          filter={filter} setFilter={setFilter} archiveView={archiveView} setArchiveView={setArchiveView}
+          sortBy={sortBy} setSortBy={setSortBy}
           query={query} setQuery={setQuery} syncing={syncing} syncError={syncError}
           onLogout={handleLogout} userEmail={userEmail} />
       )}
       {route.view === "proj" && draft && (
         <ProjectView draft={draft} isNew={isNew} upd={upd} setDraft={setDraft}
           onBack={() => setRoute({ view: "dash" })} onSave={save}
-          onDelete={() => setDelModal({ step: 1, id: draft.id })} onShare={() => setShareOpen(true)}
+          onDelete={() => setDelModal({ step: 1, id: draft.id })}
+          onArchive={() => setArchiveModal({ id: draft.id, name: draft.name, archived: draft.archived ?? false })}
+          onShare={() => setShareOpen(true)}
           contactForm={contactForm} setContactForm={setContactForm} saveContact={saveContact}
           syncing={syncing} syncError={syncError}
           onLogout={handleLogout} userEmail={userEmail} />
       )}
       {shareOpen && draft && <ShareModal project={draft} onClose={() => setShareOpen(false)} />}
+      {archiveModal && (
+        <Modal onClose={() => setArchiveModal(null)} width={380}>
+          <div style={{ padding: 24 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--bg-soft)", color: "var(--tx-2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+              <I.Archive size={20} />
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "var(--tx)", textAlign: "center", marginBottom: 6 }}>
+              {archiveModal.archived ? "¿Desarchivar esta obra?" : "¿Archivar esta obra?"}
+            </div>
+            <div style={{ fontSize: 13, color: "var(--tx-2)", textAlign: "center", marginBottom: 20, lineHeight: 1.5 }}>
+              {archiveModal.archived
+                ? <><b>{archiveModal.name}</b> volverá a aparecer en obras activas.</>
+                : <><b>{archiveModal.name}</b> se moverá a obras archivadas y no se podrá editar.</>}
+            </div>
+            <div style={fx({ gap: 8, justifyContent: "center" })}>
+              <Btn variant="ghost" onClick={() => setArchiveModal(null)}>Cancelar</Btn>
+              <Btn variant="primary" onClick={confirmArchive}>
+                {archiveModal.archived ? "Desarchivar" : "Archivar"}
+              </Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
       {delModal && (
         <Modal onClose={() => setDelModal(null)} width={380}>
           <div style={{ padding: 24 }}>

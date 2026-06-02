@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import TopNav from './TopNav.jsx';
+import { I } from './icons/index.jsx';
 import ProjectInfo from './tabs/ProjectInfo.jsx';
 import ProjectStatus from './tabs/ProjectStatus.jsx';
 import ProjectPhotos from './tabs/ProjectPhotos.jsx';
@@ -10,7 +11,6 @@ import ProjectApertura from './tabs/ProjectApertura.jsx';
 import ProjectHistory from './tabs/ProjectHistory.jsx';
 import ProjectCronograma from './tabs/ProjectCronograma.jsx';
 import ProjectMobiliario from './tabs/ProjectMobiliario.jsx';
-import { I } from './icons/index.jsx';
 
 const TABS = [
   { id: "info",      label: "Información", Icon: p => <I.DocText   {...p} /> },
@@ -38,7 +38,7 @@ function TabBar({ tabs, active, onSelect }) {
   );
 }
 
-export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSave, onDelete, onShare, contactForm, setContactForm, saveContact, syncing, syncError, onLogout, userEmail }) {
+export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSave, onDelete, onArchive, onShare, contactForm, setContactForm, saveContact, syncing, syncError, onLogout, userEmail }) {
   const [tab, setTab] = useState("info");
   const timerRef = useRef(null);
   const draftRef = useRef(draft);
@@ -65,14 +65,14 @@ export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSav
   }, [draft, isNew]);
 
   useEffect(() => {
-    if (!draftKey) return;
+    if (!draftKey || draftRef.current?.archived) return;
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => onSave(draftRef.current), 2000);
     return () => clearTimeout(timerRef.current);
   }, [draftKey, onSave]);
 
   const handleTabChange = useCallback(nextTab => {
-    if (!isNew && draftRef.current?.name?.trim()) {
+    if (!isNew && !draftRef.current?.archived && draftRef.current?.name?.trim()) {
       clearTimeout(timerRef.current);
       onSave(draftRef.current);
     }
@@ -81,26 +81,36 @@ export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSav
 
   const handleBack = () => {
     clearTimeout(timerRef.current);
-    if (!isNew && draftRef.current?.name?.trim()) onSave(draftRef.current);
+    if (!isNew && !draftRef.current?.archived && draftRef.current?.name?.trim()) onSave(draftRef.current);
     onBack();
   };
 
 
+  const isArchived = !!draft.archived;
+
   return (
     <div style={{ minHeight: "100vh" }}>
-      <TopNav project={draft} isNew={isNew} onBack={handleBack} onSave={() => onSave(draftRef.current)} onDelete={onDelete} onShare={onShare} canSave={!!draft.name?.trim()} syncing={syncing} syncError={syncError} onLogout={onLogout} userEmail={userEmail} />
+      <TopNav project={draft} isNew={isNew} onBack={handleBack} onSave={() => onSave(draftRef.current)} onDelete={onDelete} onArchive={onArchive} onShare={onShare} canSave={!!draft.name?.trim() && !isArchived} isArchived={isArchived} syncing={syncing} syncError={syncError} onLogout={onLogout} userEmail={userEmail} />
       <div style={{ maxWidth: 980, margin: "0 auto", padding: "16px var(--pp) 80px" }}>
         {!isNew && <TabBar tabs={TABS} active={tab} onSelect={handleTabChange} />}
-        {(tab === "info"     || isNew) && <ProjectInfo     draft={draft} isNew={isNew} upd={upd} contactForm={contactForm} setContactForm={setContactForm} saveContact={saveContact} />}
-        {!isNew && tab === "status"    && <ProjectStatus   draft={draft} upd={upd} setDraft={setDraft} />}
-        {!isNew && tab === "photos"    && <ProjectPhotos   draft={draft} setDraft={setDraft} />}
-        {!isNew && tab === "onedrive"  && <ProjectOneDrive draft={draft} upd={upd} />}
-        {!isNew && tab === "notes"      && <ProjectNotes      draft={draft} upd={upd} />}
-        {!isNew && tab === "mobiliario" && <ProjectMobiliario draft={draft} upd={upd} />}
-        {!isNew && tab === "bitacora"    && <ProjectBitacora   draft={draft} setDraft={setDraft} />}
-        {!isNew && tab === "cronograma" && <ProjectCronograma draft={draft} setDraft={setDraft} />}
-        {!isNew && tab === "apertura"   && <ProjectApertura   draft={draft} upd={upd} setDraft={setDraft} />}
-        {!isNew && tab === "history"   && <ProjectHistory  draft={draft} />}
+        {isArchived && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--warn-bg)", border: "1px solid var(--warn)", color: "var(--warn)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, fontWeight: 500 }}>
+            <I.Archive size={14} />
+            Esta obra está archivada — solo lectura
+          </div>
+        )}
+        <div style={{ pointerEvents: isArchived ? "none" : undefined }}>
+          {(tab === "info"     || isNew) && <ProjectInfo     draft={draft} isNew={isNew} upd={upd} contactForm={contactForm} setContactForm={setContactForm} saveContact={saveContact} />}
+          {!isNew && tab === "status"    && <ProjectStatus   draft={draft} upd={upd} setDraft={setDraft} />}
+          {!isNew && tab === "photos"    && <ProjectPhotos   draft={draft} setDraft={setDraft} />}
+          {!isNew && tab === "onedrive"  && <ProjectOneDrive draft={draft} upd={upd} />}
+          {!isNew && tab === "notes"      && <ProjectNotes      draft={draft} upd={upd} />}
+          {!isNew && tab === "mobiliario" && <ProjectMobiliario draft={draft} upd={upd} />}
+          {!isNew && tab === "bitacora"    && <ProjectBitacora   draft={draft} setDraft={setDraft} />}
+          {!isNew && tab === "cronograma" && <ProjectCronograma draft={draft} setDraft={setDraft} />}
+          {!isNew && tab === "apertura"   && <ProjectApertura   draft={draft} upd={upd} setDraft={setDraft} />}
+          {!isNew && tab === "history"   && <ProjectHistory  draft={draft} />}
+        </div>
       </div>
     </div>
   );
