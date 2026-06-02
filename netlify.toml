@@ -10,7 +10,7 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://onzlwbaoypydslvvrfdr.supabase.co wss://onzlwbaoypydslvvrfdr.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://onzlwbaoypydslvvrfdr.supabase.co; connect-src 'self' https://onzlwbaoypydslvvrfdr.supabase.co wss://onzlwbaoypydslvvrfdr.supabase.co; frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
