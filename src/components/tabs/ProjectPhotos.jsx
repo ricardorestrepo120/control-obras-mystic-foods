@@ -21,14 +21,16 @@ export default function ProjectPhotos({ draft, setDraft }) {
     try {
       const newPhotos = await Promise.all(valid.map(async f => {
         const photoId = `ph-${crypto.randomUUID()}`;
+        console.log(`[photos] archivo: ${f.name} | tipo:${f.type} | tamaño:${(f.size/1024).toFixed(0)}KB`);
         const dataUrl = await compressImage(f);
+        console.log(`[photos] comprimida: ${(dataUrl.length/1024).toFixed(0)}KB base64`);
         const url = await storage.upload(dataUrl, draft.id, photoId);
         return { id: photoId, name: f.name, url, storagePath: `${draft.id}/${photoId}.jpg`, uploadedAt: Date.now(), caption: "" };
       }));
       setDraft(d => ({ ...d, photos: [...(d.photos ?? []), ...newPhotos] }));
     } catch (e) {
-      console.error("[photos] upload error:", e);
-      setSizeWarn("Error al procesar las fotos. Intenta de nuevo.");
+      console.error("[photos] ❌ upload error:", e);
+      setSizeWarn(`Error al subir foto: ${e.message}`);
       clearTimeout(sizeWarnTimerRef.current);
       sizeWarnTimerRef.current = setTimeout(() => setSizeWarn(""), 4000);
     } finally {

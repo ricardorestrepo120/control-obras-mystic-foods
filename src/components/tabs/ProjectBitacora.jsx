@@ -52,15 +52,18 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
     try {
       const added = await Promise.all(valid.map(async f => {
         const photoId = `vph-${crypto.randomUUID()}`;
+        console.log(`[bitacora] archivo: ${f.name} | tipo:${f.type} | tamaño:${(f.size/1024).toFixed(0)}KB`);
         const dataUrl = await compressImage(f);
+        console.log(`[bitacora] comprimida: ${(dataUrl.length/1024).toFixed(0)}KB base64`);
         const url = await storage.upload(dataUrl, draft.id, photoId);
         return { id: photoId, name: f.name, url, storagePath: `${draft.id}/${photoId}.jpg`, uploadedAt: Date.now() };
       }));
       if (gen !== genRef.current) return;
       setFormPhotos(prev => [...prev, ...added]);
-    } catch {
+    } catch (err) {
       if (gen !== genRef.current) return;
-      setUploadErr("Error al procesar las fotos. Intenta de nuevo.");
+      console.error("[bitacora] ❌ upload error:", err);
+      setUploadErr(`Error al subir foto: ${err.message}`);
       uploadErrTimerRef.current = setTimeout(() => setUploadErr(""), 3000);
     } finally {
       if (gen === genRef.current) setUploading(false);
