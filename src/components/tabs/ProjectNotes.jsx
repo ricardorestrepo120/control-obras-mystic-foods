@@ -13,10 +13,14 @@ import { I } from '../icons/index.jsx';
 import { col, fx, tc, fmtDate, daysUntil } from '../../lib/utils.js';
 import { compressImage } from '../../lib/dataModel.js';
 
+const EMPTY_FORM = { text: "", rem: "", assignee: "", comment: "", photos: [] };
+
 export default function ProjectNotes({ draft, upd, readOnly = false }) {
   const list = draft.checklist ?? [];
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ text: "", rem: "", time: "", assignee: "" });
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [formUploading, setFormUploading] = useState(false);
+  const formFileRef = useRef(null);
   const [filter, setFilter] = useState("all");
   const assignees = useMemo(() => [...new Set(list.map(x => x.assignee).filter(Boolean))].sort(), [list]);
   useEffect(() => { if (filter !== "all" && !assignees.includes(filter)) setFilter("all"); }, [assignees, filter]);
@@ -27,10 +31,27 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
   const totalDone    = list.filter(x => x.done).length;
   const totalOverdue = list.filter(x => !x.done && x.reminder?.date && daysUntil(x.reminder.date) < 0).length;
 
+  const uploadFormPhotos = async files => {
+    const valid = Array.from(files).filter(f => f.type.startsWith("image/"));
+    if (!valid.length) return;
+    setFormUploading(true);
+    try {
+      const newPhotos = await Promise.all(valid.map(async f => {
+        const data = await compressImage(f);
+        return { id: `ph-${crypto.randomUUID()}`, name: f.name, data, uploadedAt: Date.now() };
+      }));
+      setForm(f => ({ ...f, photos: [...f.photos, ...newPhotos] }));
+    } catch (e) {
+      console.error("[form] photo upload error:", e);
+    } finally {
+      setFormUploading(false);
+    }
+  };
+
   const addItem = () => {
     if (!form.text.trim()) return;
-    upd("checklist", prev => [...prev, { id: `cl-${crypto.randomUUID()}`, text: form.text.trim(), done: false, assignee: form.assignee.trim() || "", reminder: form.rem ? { date: form.rem, time: form.time } : null, photos: [], comment: "" }]);
-    setForm({ text: "", rem: "", time: "", assignee: "" }); setAdding(false);
+    upd("checklist", prev => [...prev, { id: `cl-${crypto.randomUUID()}`, text: form.text.trim(), done: false, assignee: form.assignee.trim() || "", reminder: form.rem ? { date: form.rem } : null, photos: form.photos, comment: form.comment }]);
+    setForm(EMPTY_FORM); setAdding(false);
   };
   const patch = (id, ch) => upd("checklist", prev => prev.map(x => x.id === id ? { ...x, ...ch } : x));
 
@@ -65,12 +86,40 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
             <Input value={form.text} onChange={e => setForm(f => ({ ...f, text: e.target.value }))} placeholder="ej: Revisar cotización de mobiliario" autoFocus onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) addItem(); }} />
             <div style={fx({ gap: 10, marginTop: 10, flexWrap: "wrap" })}>
               <div style={{ flex: "1 1 150px" }}><Lbl>Responsable</Lbl><AssigneeInput value={form.assignee} onChange={v => setForm(f => ({ ...f, assignee: v }))} suggestions={assignees} /></div>
-              <div style={{ flex: "1 1 120px" }}><Lbl>Fecha</Lbl><Input type="date" value={form.rem}  onChange={e => setForm(f => ({ ...f, rem: e.target.value }))} /></div>
-              <div style={{ flex: "1 1 90px" }}> <Lbl>Hora</Lbl> <Input type="time" value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} /></div>
+              <div style={{ flex: "1 1 120px" }}><Lbl>Fecha</Lbl><Input type="date" value={form.rem} onChange={e => setForm(f => ({ ...f, rem: e.target.value }))} /></div>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <Lbl>Notas</Lbl>
+              <textarea
+                value={form.comment}
+                onChange={e => setForm(f => ({ ...f, comment: e.target.value }))}
+                placeholder="Comentarios o notas adicionales…"
+                rows={2}
+                style={{ width: "100%", resize: "vertical", border: "1px solid var(--bd)", borderRadius: 8, background: "var(--bg-elev)", color: "var(--tx)", fontSize: 13, padding: "8px 10px", outline: "none", fontFamily: "inherit", boxSizing: "border-box", transition: "border-color .12s" }}
+                onFocus={e => { e.currentTarget.style.borderColor = "var(--accent)"; }}
+                onBlur={e  => { e.currentTarget.style.borderColor = "var(--bd)"; }}
+              />
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <Lbl>Fotos</Lbl>
+              <input ref={formFileRef} type="file" multiple accept="image/*" style={{ display: "none" }} onChange={e => { uploadFormPhotos(e.target.files); e.target.value = ""; }} />
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start" }}>
+                {form.photos.map(ph => (
+                  <div key={ph.id} style={{ position: "relative", width: 88, height: 66, borderRadius: 8, overflow: "hidden", flexShrink: 0, border: "1px solid var(--bd)" }}>
+                    <div style={{ width: "100%", height: "100%", backgroundImage: `url(${ph.data})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                    <button onClick={() => setForm(f => ({ ...f, photos: f.photos.filter(p => p.id !== ph.id) }))} style={{ position: "absolute", top: 3, right: 3, width: 18, height: 18, borderRadius: "50%", background: "rgba(0,0,0,0.65)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <I.X size={9} />
+                    </button>
+                  </div>
+                ))}
+                <button onClick={() => formFileRef.current?.click()} disabled={formUploading} style={{ width: 88, height: 66, borderRadius: 8, border: "1.5px dashed var(--bd-strong)", background: "var(--bg-elev)", color: "var(--tx-3)", cursor: formUploading ? "wait" : "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 11, flexShrink: 0, opacity: formUploading ? 0.6 : 1 }}>
+                  {formUploading ? <span style={{ fontSize: 13, fontWeight: 600 }}>…</span> : <><I.Camera size={15} /><span>Foto</span></>}
+                </button>
+              </div>
             </div>
             <div style={fx({ gap: 8, marginTop: 12 })}>
-              <Btn variant="primary" size="sm" onClick={addItem} disabled={!form.text.trim()}>Agregar</Btn>
-              <Btn variant="text" size="sm" onClick={() => { setAdding(false); setForm({ text: "", rem: "", time: "", assignee: "" }); }}>Cancelar</Btn>
+              <Btn variant="primary" size="sm" onClick={addItem} disabled={!form.text.trim() || formUploading}>Agregar</Btn>
+              <Btn variant="text" size="sm" onClick={() => { setAdding(false); setForm(EMPTY_FORM); }}>Cancelar</Btn>
             </div>
           </div>
         )}
