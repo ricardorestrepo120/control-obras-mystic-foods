@@ -30,7 +30,7 @@ const BUCKET = "obras-fotos";
 const storageFetch = (path, opts = {}) =>
   fetch(`${SB_URL}/storage/v1${path}`, {
     ...opts,
-    headers: { "Authorization": `Bearer ${_tok}`, ...(opts.headers ?? {}) },
+    headers: { "apikey": SB_KEY, "Authorization": `Bearer ${_tok}`, ...(opts.headers ?? {}) },
   });
 
 export const storage = {
