@@ -59,9 +59,7 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
           return;
         }
         const photoId = `vph-${crypto.randomUUID()}`;
-        console.log(`[bitacora] archivo: ${f.name} | tipo:${f.type} | tamaño:${(f.size/1024).toFixed(0)}KB`);
         const dataUrl = await compressImage(f);
-        console.log(`[bitacora] comprimida: ${(dataUrl.length/1024).toFixed(0)}KB base64`);
         const url = await storage.upload(dataUrl, draft.id, photoId);
         added.push({ id: photoId, name: f.name, url, storagePath: `${draft.id}/${photoId}.jpg`, uploadedAt: Date.now() });
       }

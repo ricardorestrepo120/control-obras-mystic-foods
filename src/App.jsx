@@ -45,6 +45,7 @@ export default function App() {
     setDraft(null);
     setIsNew(false);
     setRoute({ view: "dash" });
+    setArchiveView("active");
     setDelModal(null);
     setArchiveModal(null);
     setShareOpen(false);
@@ -209,17 +210,19 @@ export default function App() {
     const { id, archived } = archiveModal;
     const newArchived = !archived;
     setArchiveModal(null);
-    const proj = projects.find(p => p.id === id);
-    if (!proj) return;
-    const toSave = { ...proj, archived: newArchived, _srv: new Date().toISOString() };
+    // Use the draft (latest unsaved edits) when user is viewing this project,
+    // otherwise fall back to the last-saved version from projects state.
+    const base = (draft?.id === id) ? draft : projects.find(p => p.id === id);
+    if (!base) return;
+    const toSave = { ...base, archived: newArchived, _srv: new Date().toISOString() };
     setProjects(prev => prev.map(p => p.id === id ? toSave : p));
-    setDraft(d => d?.id === id ? { ...d, archived: newArchived } : d);
+    setDraft(d => d?.id === id ? { ...d, archived: newArchived, _srv: toSave._srv } : d);
     setSyncing(true);
     db.save(toSave)
       .then(() => { setSyncError(false); showToast(newArchived ? "Obra archivada" : "Obra desarchivada"); })
       .catch(err => { setSyncError(true); showToast("Error al guardar. Intenta de nuevo."); console.error(err); })
       .finally(() => setSyncing(false));
-  }, [archiveModal, projects, showToast]);
+  }, [archiveModal, draft, projects, showToast]);
 
   const confirmDelete = () => {
     if (delModal.step === 1) { setDelModal(m => ({ ...m, step: 2 })); return; }

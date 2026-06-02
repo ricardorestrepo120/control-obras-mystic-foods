@@ -47,7 +47,6 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
         pendingFotoPathRef.current = null;
       }
       const photoId = `mf-${crypto.randomUUID()}`;
-      console.log(`[mobiliario] foto: ${file.name} (${file.type}, ${(file.size / 1024).toFixed(0)}KB)`);
       const dataUrl = await compressImage(file);
       const url     = await storage.upload(dataUrl, draft.id, photoId);
       const storagePath = `${draft.id}/${photoId}.jpg`;

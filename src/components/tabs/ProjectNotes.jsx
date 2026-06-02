@@ -40,9 +40,7 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
     try {
       for (const f of valid) {
         const photoId = `ph-${crypto.randomUUID()}`;
-        console.log(`[notes-form] archivo: ${f.name} | tipo:${f.type} | tamaño:${(f.size/1024).toFixed(0)}KB`);
         const dataUrl = await compressImage(f);
-        console.log(`[notes-form] comprimida: ${(dataUrl.length/1024).toFixed(0)}KB base64`);
         const url = await storage.upload(dataUrl, draft.id, photoId);
         newPhotos.push({ id: photoId, name: f.name, url, storagePath: `${draft.id}/${photoId}.jpg`, uploadedAt: Date.now() });
       }
@@ -177,9 +175,7 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false, 
     try {
       for (const f of valid) {
         const photoId = `ph-${crypto.randomUUID()}`;
-        console.log(`[notes-row] archivo: ${f.name} | tipo:${f.type} | tamaño:${(f.size/1024).toFixed(0)}KB`);
         const dataUrl = await compressImage(f);
-        console.log(`[notes-row] comprimida: ${(dataUrl.length/1024).toFixed(0)}KB base64`);
         const url = await storage.upload(dataUrl, projectId, photoId);
         newPhotos.push({ id: photoId, name: f.name, url, storagePath: `${projectId}/${photoId}.jpg`, uploadedAt: Date.now() });
       }

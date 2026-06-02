@@ -38,8 +38,6 @@ export const storage = {
   // Uses atob() instead of fetch(dataUrl) — some desktop browsers block
   // fetch() on data: URLs due to CSP restrictions.
   async upload(dataUrl, projectId, photoId) {
-    console.log(`[storage.upload] inicio — project:${projectId} photo:${photoId} src-len:${dataUrl?.length ?? 0}`);
-
     // ── Step 1: data URL → Blob ──────────────────────────────────────────
     let blob;
     try {
@@ -51,16 +49,13 @@ export const storage = {
       const buf  = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
       blob = new Blob([buf], { type: mime });
-      console.log(`[storage.upload] blob creado — mime:${blob.type} size:${blob.size}B`);
     } catch (err) {
-      console.error('[storage.upload] ❌ error creando blob:', err);
+      console.error('[storage.upload] error creando blob:', err);
       throw new Error(`Error creando blob: ${err.message}`);
     }
 
     // ── Step 2: POST al bucket ──────────────────────────────────────────
     const path = `${projectId}/${photoId}.jpg`;
-    const tokenPreview = _tok?.slice(0, 20) ?? '(sin token)';
-    console.log(`[storage.upload] subiendo → /${BUCKET}/${path} | token:${tokenPreview}…`);
 
     let r;
     try {
@@ -70,19 +65,17 @@ export const storage = {
         body: blob,
       });
     } catch (err) {
-      console.error('[storage.upload] ❌ error de red (¿CORS? ¿bucket no existe?):', err);
+      console.error('[storage.upload] error de red:', err);
       throw new Error(`Error de red al subir: ${err.message}`);
     }
 
     if (!r.ok) {
       const body = await r.text().catch(() => '');
-      console.error(`[storage.upload] ❌ HTTP ${r.status} — bucket:${BUCKET} path:${path} — respuesta:`, body);
+      console.error(`[storage.upload] HTTP ${r.status} — ${BUCKET}/${path}:`, body);
       throw new Error(`Storage ${r.status}: ${body || r.statusText}`);
     }
 
-    const publicUrl = `${SB_URL}/storage/v1/object/public/${BUCKET}/${path}`;
-    console.log('[storage.upload] ✓ éxito —', publicUrl);
-    return publicUrl;
+    return `${SB_URL}/storage/v1/object/public/${BUCKET}/${path}`;
   },
 
   // Deletes objects by their storage paths. Best-effort — never throws.

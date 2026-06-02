@@ -30,7 +30,7 @@ export default function ProjectStatus({ draft, upd, setDraft, readOnly = false }
 
   const addItem = () => {
     if (!newName.trim()) return;
-    upd("statusItems", prev => [...prev, { id: `c-${Date.now()}`, name: newName.trim(), state: null, notes: "", custom: true }]);
+    upd("statusItems", prev => [...prev, { id: `c-${crypto.randomUUID()}`, name: newName.trim(), state: null, notes: "", custom: true }]);
     setNewName(""); setAdding(false);
   };
 
