@@ -19,7 +19,7 @@ export default function ProjectOneDrive({ draft, upd }) {
   const openUrl = url => {
     const t = url.trim();
     if (!t) return;
-    if (/^(javascript|data):/i.test(t)) return;
+    if (/^(javascript|data|vbscript):/i.test(t)) return;
     window.open(/^https?:\/\//i.test(t) ? t : `https://${t}`, "_blank", "noopener,noreferrer");
   };
 

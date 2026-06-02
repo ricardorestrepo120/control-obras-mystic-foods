@@ -45,6 +45,7 @@ export default function App() {
     setRoute({ view: "dash" });
     setDelModal(null);
     setShareOpen(false);
+    setContactForm(null);
     deletedIdsRef.current.clear();
   }, []);
 

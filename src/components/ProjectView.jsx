@@ -59,7 +59,9 @@ export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSav
       id: c.id, text: c.text, done: c.done, assignee: c.assignee,
       reminder: c.reminder, comment: c.comment, _pc: c.photos?.length ?? 0,
     }));
-    return JSON.stringify({ ...rest, _pc: _p?.length ?? 0, _vm: visitasMeta, _mob: mobMeta, checklist: clMeta });
+    // Track captions so a caption-only edit also fires autosave
+    const captionHash = (_p ?? []).map(p => `${p.id}:${p.caption ?? ""}`).join("|");
+    return JSON.stringify({ ...rest, _pc: _p?.length ?? 0, _vm: visitasMeta, _mob: mobMeta, checklist: clMeta, _ch: captionHash });
   }, [draft, isNew]);
 
   useEffect(() => {
