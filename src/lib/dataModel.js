@@ -4,6 +4,11 @@ export const MAX_PHOTOS_BYTES = 700_000;
 export const MAX_PHOTO_SIDE   = 900;
 export const PHOTO_QUALITY    = 0.65;
 
+// Returns the displayable src for a photo regardless of its storage format:
+// — new photos: { url: "https://..." }  (Supabase Storage)
+// — old photos: { data: "data:image/jpeg;base64,..." }  (legacy base64)
+export const getPhotoSrc = photo => photo?.url ?? photo?.data ?? "";
+
 export function calcProgress(p) {
   const pl = p.statusItems ?? [], cl = p.checklist ?? [], ap = p.aperturaItems ?? [];
   const sc = (arr, fn, w) => arr.length ? { v: arr.reduce((a, x) => a + fn(x), 0) / arr.length, w } : null;
@@ -117,13 +122,16 @@ export function migrate(raw) {
 }
 
 export const encodeShare = p => {
+  // URL photos (Storage) keep their url so the shared view can display them.
+  // Legacy base64 photos have their data stripped to reduce share URL size.
+  const stripPhoto = ph => ph.url ? ph : { ...ph, data: "" };
   try {
     const clean = {
       ...p,
-      photos: (p.photos ?? []).map(ph => ({ ...ph, data: "" })),
-      visitas: (p.visitas ?? []).map(v => ({ ...v, photos: (v.photos ?? []).map(ph => ({ ...ph, data: "" })) })),
-      mobiliario: (p.mobiliario ?? []).map(m => ({ ...m, foto: m.foto ? { ...m.foto, data: "" } : null })),
-      checklist: (p.checklist ?? []).map(c => ({ ...c, photos: (c.photos ?? []).map(ph => ({ ...ph, data: "" })) })),
+      photos:     (p.photos    ?? []).map(stripPhoto),
+      visitas:    (p.visitas   ?? []).map(v => ({ ...v, photos: (v.photos ?? []).map(stripPhoto) })),
+      mobiliario: (p.mobiliario ?? []).map(m => ({ ...m, foto: m.foto ? stripPhoto(m.foto) : null })),
+      checklist:  (p.checklist ?? []).map(c => ({ ...c, photos: (c.photos ?? []).map(stripPhoto) })),
     };
     const bytes = new TextEncoder().encode(JSON.stringify(clean));
     return btoa(Array.from(bytes, b => String.fromCharCode(b)).join(""));

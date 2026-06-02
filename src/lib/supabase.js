@@ -18,6 +18,50 @@ const authFetch = (path, opts = {}) =>
     headers: { ...BASE_HDR, ...(opts.headers ?? {}) },
   });
 
+// ── Supabase Storage ──────────────────────────────────────────────────────
+// Bucket "obras-fotos" must exist and be public in the Supabase dashboard.
+// RLS policies required:
+//   INSERT: authenticated users (role = 'authenticated')
+//   DELETE: authenticated users
+//   SELECT: public (anon role) — so public URLs work without auth
+
+const BUCKET = "obras-fotos";
+
+const storageFetch = (path, opts = {}) =>
+  fetch(`${SB_URL}/storage/v1${path}`, {
+    ...opts,
+    headers: { "Authorization": `Bearer ${_tok}`, ...(opts.headers ?? {}) },
+  });
+
+export const storage = {
+  // Uploads a compressed dataUrl to Storage and returns its public URL.
+  // Path in bucket: {projectId}/{photoId}.jpg
+  // Throws on failure so the caller can surface an error to the user.
+  async upload(dataUrl, projectId, photoId) {
+    const blob = await (await fetch(dataUrl)).blob();
+    const path = `${projectId}/${photoId}.jpg`;
+    const r = await storageFetch(`/object/${BUCKET}/${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "image/jpeg", "x-upsert": "true" },
+      body: blob,
+    });
+    if (!r.ok) throw new Error(`Storage upload (${r.status}): ${await r.text()}`);
+    return `${SB_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+  },
+
+  // Deletes objects by their storage paths. Best-effort — never throws.
+  async remove(paths) {
+    if (!paths?.length) return;
+    try {
+      await storageFetch(`/object/${BUCKET}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prefixes: paths }),
+      });
+    } catch {}
+  },
+};
+
 const SESSION_KEY = "co_session";
 
 // Throws an error with a `.status` property so callers can distinguish

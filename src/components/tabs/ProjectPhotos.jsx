@@ -3,7 +3,8 @@ import Empty from '../ui/Empty.jsx';
 import IconBtn from '../ui/IconBtn.jsx';
 import { I } from '../icons/index.jsx';
 import { col, fx, relTime } from '../../lib/utils.js';
-import { compressImage } from '../../lib/dataModel.js';
+import { compressImage, getPhotoSrc } from '../../lib/dataModel.js';
+import { storage } from '../../lib/supabase.js';
 
 export default function ProjectPhotos({ draft, setDraft }) {
   const photos = draft.photos ?? [];
@@ -19,8 +20,10 @@ export default function ProjectPhotos({ draft, setDraft }) {
     setUploading(true); setSizeWarn("");
     try {
       const newPhotos = await Promise.all(valid.map(async f => {
-        const data = await compressImage(f);
-        return { id: `ph-${crypto.randomUUID()}`, name: f.name, data, uploadedAt: Date.now(), caption: "" };
+        const photoId = `ph-${crypto.randomUUID()}`;
+        const dataUrl = await compressImage(f);
+        const url = await storage.upload(dataUrl, draft.id, photoId);
+        return { id: photoId, name: f.name, url, storagePath: `${draft.id}/${photoId}.jpg`, uploadedAt: Date.now(), caption: "" };
       }));
       setDraft(d => ({ ...d, photos: [...(d.photos ?? []), ...newPhotos] }));
     } catch (e) {
@@ -34,9 +37,11 @@ export default function ProjectPhotos({ draft, setDraft }) {
   };
 
   const remove = id => {
+    const photo     = photos.find(p => p.id === id);
     const nextPhotos = photos.filter(p => p.id !== id);
     setLightbox(lb => lb === null ? null : nextPhotos.length === 0 ? null : Math.min(lb, nextPhotos.length - 1));
     setDraft(d => ({ ...d, photos: (d.photos ?? []).filter(p => p.id !== id) }));
+    if (photo?.storagePath) storage.remove([photo.storagePath]).catch(console.error);
   };
 
   const setCaption = (id, caption) => setDraft(d => ({ ...d, photos: (d.photos ?? []).map(p => p.id === id ? { ...p, caption } : p) }));
@@ -79,7 +84,7 @@ export default function ProjectPhotos({ draft, setDraft }) {
                 <div key={ph.id} style={{ borderRadius: 10, overflow: "hidden", background: "var(--bg-elev)", border: "1px solid var(--bd)", transition: "all .15s ease" }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--bd-strong)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--bd)"; e.currentTarget.style.transform = "translateY(0)"; }}>
-                  <div onClick={() => setLightbox(idx)} style={{ aspectRatio: "4/3", backgroundImage: `url(${ph.data})`, backgroundSize: "cover", backgroundPosition: "center", cursor: "zoom-in" }} />
+                  <div onClick={() => setLightbox(idx)} style={{ aspectRatio: "4/3", backgroundImage: `url(${getPhotoSrc(ph)})`, backgroundSize: "cover", backgroundPosition: "center", cursor: "zoom-in" }} />
                   <div style={{ padding: "8px 10px" }}>
                     <input value={ph.caption || ""} onChange={e => setCaption(ph.id, e.target.value)} placeholder="Descripción…" style={{ width: "100%", border: "none", background: "transparent", fontSize: 12, color: "var(--tx-2)", outline: "none", marginBottom: 4 }} />
                     <div style={fx({ justifyContent: "space-between", fontSize: 10, color: "var(--tx-4)" })}>
@@ -94,7 +99,7 @@ export default function ProjectPhotos({ draft, setDraft }) {
       {lightbox !== null && photos[lightbox] && (
         <div onClick={() => setLightbox(null)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.93)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div onClick={e => e.stopPropagation()} style={col({ alignItems: "center", maxWidth: "90vw", gap: 10 })}>
-            <img src={photos[lightbox].data} alt={photos[lightbox].caption || photos[lightbox].name} style={{ maxWidth: "82vw", maxHeight: "72vh", objectFit: "contain", borderRadius: 8, display: "block" }} />
+            <img src={getPhotoSrc(photos[lightbox])} alt={photos[lightbox].caption || photos[lightbox].name} style={{ maxWidth: "82vw", maxHeight: "72vh", objectFit: "contain", borderRadius: 8, display: "block" }} />
             {photos[lightbox].caption && <div style={{ fontSize: 13, color: "rgba(255,255,255,.75)", maxWidth: 500, textAlign: "center", lineHeight: 1.5 }}>{photos[lightbox].caption}</div>}
             <div style={{ fontSize: 12, color: "rgba(255,255,255,.35)", letterSpacing: .5 }}>{lightbox + 1} / {photos.length}</div>
           </div>

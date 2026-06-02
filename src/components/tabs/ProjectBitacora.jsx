@@ -9,7 +9,8 @@ import Lbl from '../ui/Lbl.jsx';
 import Empty from '../ui/Empty.jsx';
 import { I } from '../icons/index.jsx';
 import { col, fx, fmtDateLong } from '../../lib/utils.js';
-import { compressImage } from '../../lib/dataModel.js';
+import { compressImage, getPhotoSrc } from '../../lib/dataModel.js';
+import { storage } from '../../lib/supabase.js';
 
 const todayStr = () => {
   const d = new Date();
@@ -49,12 +50,12 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
     clearTimeout(uploadErrTimerRef.current);
     setUploadErr("");
     try {
-      const added = await Promise.all(valid.map(async f => ({
-        id: `vph-${crypto.randomUUID()}`,
-        name: f.name,
-        data: await compressImage(f),
-        uploadedAt: Date.now(),
-      })));
+      const added = await Promise.all(valid.map(async f => {
+        const photoId = `vph-${crypto.randomUUID()}`;
+        const dataUrl = await compressImage(f);
+        const url = await storage.upload(dataUrl, draft.id, photoId);
+        return { id: photoId, name: f.name, url, storagePath: `${draft.id}/${photoId}.jpg`, uploadedAt: Date.now() };
+      }));
       if (gen !== genRef.current) return;
       setFormPhotos(prev => [...prev, ...added]);
     } catch {
@@ -87,6 +88,9 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
 
   const cancel = () => {
     genRef.current++;
+    // Cleanup any photos already uploaded to Storage for this discarded form
+    const paths = formPhotos.map(p => p.storagePath).filter(Boolean);
+    if (paths.length) storage.remove(paths).catch(console.error);
     setAdding(false);
     setForm(freshForm());
     setFormPhotos([]);
@@ -94,8 +98,18 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
     setUploadErr("");
   };
 
-  const removeVisita = id =>
+  const removeFormPhoto = id => {
+    const ph = formPhotos.find(p => p.id === id);
+    setFormPhotos(prev => prev.filter(p => p.id !== id));
+    if (ph?.storagePath) storage.remove([ph.storagePath]).catch(console.error);
+  };
+
+  const removeVisita = id => {
+    const visita = visitas.find(v => v.id === id);
     setDraft(d => ({ ...d, visitas: (d.visitas ?? []).filter(v => v.id !== id) }));
+    const paths = (visita?.photos ?? []).map(p => p.storagePath).filter(Boolean);
+    if (paths.length) storage.remove(paths).catch(console.error);
+  };
 
   return (
     <div className="fu" style={col({ gap: 14 })}>
@@ -147,8 +161,8 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(80px,1fr))", gap: 6, marginTop: 10 }}>
                 {formPhotos.map(ph => (
                   <div key={ph.id} style={{ position: "relative", borderRadius: 8, overflow: "hidden" }}>
-                    <div style={{ aspectRatio: "1", backgroundImage: `url(${ph.data})`, backgroundSize: "cover", backgroundPosition: "center" }} />
-                    <button onClick={() => setFormPhotos(prev => prev.filter(p => p.id !== ph.id))}
+                    <div style={{ aspectRatio: "1", backgroundImage: `url(${getPhotoSrc(ph)})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                    <button onClick={() => removeFormPhoto(ph.id)}
                       style={{ position: "absolute", top: 3, right: 3, width: 20, height: 20, borderRadius: "50%", background: "rgba(0,0,0,.6)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <I.X size={11} />
                     </button>
@@ -234,7 +248,7 @@ function VisitaCard({ visita, readOnly, onRemove }) {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(130px,1fr))", gap: 8 }}>
               {photos.map((ph, idx) => (
                 <div key={ph.id} onClick={() => setLightbox(idx)}
-                  style={{ aspectRatio: "4/3", backgroundImage: `url(${ph.data})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: 8, cursor: "zoom-in", border: "1px solid var(--bd)", transition: "opacity .15s" }}
+                  style={{ aspectRatio: "4/3", backgroundImage: `url(${getPhotoSrc(ph)})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: 8, cursor: "zoom-in", border: "1px solid var(--bd)", transition: "opacity .15s" }}
                   onMouseEnter={e => e.currentTarget.style.opacity = ".85"}
                   onMouseLeave={e => e.currentTarget.style.opacity = "1"} />
               ))}
@@ -248,7 +262,7 @@ function VisitaCard({ visita, readOnly, onRemove }) {
         <div onClick={() => setLightbox(null)}
           style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.93)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div onClick={e => e.stopPropagation()} style={col({ alignItems: "center", maxWidth: "90vw", gap: 10 })}>
-            <img src={photos[lightbox].data} alt={photos[lightbox].name || ""}
+            <img src={getPhotoSrc(photos[lightbox])} alt={photos[lightbox].name || ""}
               style={{ maxWidth: "82vw", maxHeight: "72vh", objectFit: "contain", borderRadius: 8, display: "block" }} />
             <div style={{ fontSize: 12, color: "rgba(255,255,255,.35)", letterSpacing: .5 }}>{lightbox + 1} / {photos.length}</div>
           </div>

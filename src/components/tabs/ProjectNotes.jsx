@@ -11,7 +11,8 @@ import Avatar from '../ui/Avatar.jsx';
 import AssigneeInput from '../ui/AssigneeInput.jsx';
 import { I } from '../icons/index.jsx';
 import { col, fx, tc, fmtDate, daysUntil } from '../../lib/utils.js';
-import { compressImage } from '../../lib/dataModel.js';
+import { compressImage, getPhotoSrc } from '../../lib/dataModel.js';
+import { storage } from '../../lib/supabase.js';
 
 const EMPTY_FORM = { text: "", rem: "", assignee: "", comment: "", photos: [] };
 
@@ -37,8 +38,10 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
     setFormUploading(true);
     try {
       const newPhotos = await Promise.all(valid.map(async f => {
-        const data = await compressImage(f);
-        return { id: `ph-${crypto.randomUUID()}`, name: f.name, data, uploadedAt: Date.now() };
+        const photoId = `ph-${crypto.randomUUID()}`;
+        const dataUrl = await compressImage(f);
+        const url = await storage.upload(dataUrl, draft.id, photoId);
+        return { id: photoId, name: f.name, url, storagePath: `${draft.id}/${photoId}.jpg`, uploadedAt: Date.now() };
       }));
       setForm(f => ({ ...f, photos: [...f.photos, ...newPhotos] }));
     } catch (e) {
@@ -46,6 +49,18 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
     } finally {
       setFormUploading(false);
     }
+  };
+
+  const removeFormPhoto = id => {
+    const ph = form.photos.find(p => p.id === id);
+    setForm(f => ({ ...f, photos: f.photos.filter(p => p.id !== id) }));
+    if (ph?.storagePath) storage.remove([ph.storagePath]).catch(console.error);
+  };
+
+  const removeItem = it => {
+    const paths = (it.photos ?? []).map(p => p.storagePath).filter(Boolean);
+    if (paths.length) storage.remove(paths).catch(console.error);
+    upd("checklist", prev => prev.filter(x => x.id !== it.id));
   };
 
   const addItem = () => {
@@ -106,8 +121,8 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start" }}>
                 {form.photos.map(ph => (
                   <div key={ph.id} style={{ position: "relative", width: 88, height: 66, borderRadius: 8, overflow: "hidden", flexShrink: 0, border: "1px solid var(--bd)" }}>
-                    <div style={{ width: "100%", height: "100%", backgroundImage: `url(${ph.data})`, backgroundSize: "cover", backgroundPosition: "center" }} />
-                    <button onClick={() => setForm(f => ({ ...f, photos: f.photos.filter(p => p.id !== ph.id) }))} style={{ position: "absolute", top: 3, right: 3, width: 18, height: 18, borderRadius: "50%", background: "rgba(0,0,0,0.65)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: "100%", height: "100%", backgroundImage: `url(${getPhotoSrc(ph)})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                    <button onClick={() => removeFormPhoto(ph.id)} style={{ position: "absolute", top: 3, right: 3, width: 18, height: 18, borderRadius: "50%", background: "rgba(0,0,0,0.65)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <I.X size={9} />
                     </button>
                   </div>
@@ -119,22 +134,26 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
             </div>
             <div style={fx({ gap: 8, marginTop: 12 })}>
               <Btn variant="primary" size="sm" onClick={addItem} disabled={!form.text.trim() || formUploading}>Agregar</Btn>
-              <Btn variant="text" size="sm" onClick={() => { setAdding(false); setForm(EMPTY_FORM); }}>Cancelar</Btn>
+              <Btn variant="text" size="sm" onClick={() => {
+                const paths = form.photos.map(p => p.storagePath).filter(Boolean);
+                if (paths.length) storage.remove(paths).catch(console.error);
+                setAdding(false); setForm(EMPTY_FORM);
+              }}>Cancelar</Btn>
             </div>
           </div>
         )}
         {filtered.length === 0 && !adding && <Empty icon={<I.Check size={20} />} title="Sin pendientes" hint="Agrega tareas para esta obra" />}
-        {pending.length > 0 && <div style={col({ gap: 6 })}>{pending.map(it => <ChecklistRow key={it.id} item={it} suggestions={assignees} readOnly={readOnly} onPatch={ch => patch(it.id, ch)} onRemove={() => upd("checklist", prev => prev.filter(x => x.id !== it.id))} />)}</div>}
+        {pending.length > 0 && <div style={col({ gap: 6 })}>{pending.map(it => <ChecklistRow key={it.id} item={it} suggestions={assignees} readOnly={readOnly} onPatch={ch => patch(it.id, ch)} onRemove={() => removeItem(it)} projectId={draft.id} />)}</div>}
         {done.length > 0 && <>
           <div style={{ marginTop: 14, marginBottom: 8, fontSize: 11, fontWeight: 600, color: "var(--tx-3)", letterSpacing: .4, textTransform: "uppercase" }}>Completadas · {done.length}</div>
-          <div style={col({ gap: 6, opacity: .65 })}>{done.map(it => <ChecklistRow key={it.id} item={it} suggestions={assignees} readOnly={readOnly} onPatch={ch => patch(it.id, ch)} onRemove={() => upd("checklist", prev => prev.filter(x => x.id !== it.id))} />)}</div>
+          <div style={col({ gap: 6, opacity: .65 })}>{done.map(it => <ChecklistRow key={it.id} item={it} suggestions={assignees} readOnly={readOnly} onPatch={ch => patch(it.id, ch)} onRemove={() => removeItem(it)} projectId={draft.id} />)}</div>
         </>}
       </Card>
     </div>
   );
 }
 
-function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false }) {
+function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false, projectId }) {
   const [editRem,  setEditRem]  = useState(false);
   const [editAsgn, setEditAsgn] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -152,8 +171,10 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false }
     setUploading(true);
     try {
       const newPhotos = await Promise.all(valid.map(async f => {
-        const data = await compressImage(f);
-        return { id: `ph-${crypto.randomUUID()}`, name: f.name, data, uploadedAt: Date.now() };
+        const photoId = `ph-${crypto.randomUUID()}`;
+        const dataUrl = await compressImage(f);
+        const url = await storage.upload(dataUrl, projectId, photoId);
+        return { id: photoId, name: f.name, url, storagePath: `${projectId}/${photoId}.jpg`, uploadedAt: Date.now() };
       }));
       onPatch({ photos: [...photos, ...newPhotos] });
     } catch (e) {
@@ -164,8 +185,10 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false }
   };
 
   const removePhoto = id => {
+    const photo = photos.find(p => p.id === id);
     setLightbox(lb => lb === null ? null : photos.length <= 1 ? null : Math.min(lb, photos.length - 2));
     onPatch({ photos: photos.filter(p => p.id !== id) });
+    if (photo?.storagePath) storage.remove([photo.storagePath]).catch(console.error);
   };
 
   useEffect(() => {
@@ -182,7 +205,7 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false }
   const Lightbox = lightbox !== null && photos[lightbox] ? (
     <div onClick={() => setLightbox(null)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.93)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", alignItems: "center", maxWidth: "90vw", gap: 10 }}>
-        <img src={photos[lightbox].data} alt={photos[lightbox].name} style={{ maxWidth: "82vw", maxHeight: "72vh", objectFit: "contain", borderRadius: 8, display: "block" }} />
+        <img src={getPhotoSrc(photos[lightbox])} alt={photos[lightbox].name} style={{ maxWidth: "82vw", maxHeight: "72vh", objectFit: "contain", borderRadius: 8, display: "block" }} />
         <div style={{ fontSize: 12, color: "rgba(255,255,255,.35)", letterSpacing: .5 }}>{lightbox + 1} / {photos.length}</div>
       </div>
       {photos.length > 1 && <>
@@ -208,7 +231,7 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false }
             {photos.length > 0 && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 8 }}>
                 {photos.map((ph, idx) => (
-                  <div key={ph.id} onClick={() => setLightbox(idx)} style={{ aspectRatio: "4/3", backgroundImage: `url(${ph.data})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: 8, cursor: "zoom-in" }} />
+                  <div key={ph.id} onClick={() => setLightbox(idx)} style={{ aspectRatio: "4/3", backgroundImage: `url(${getPhotoSrc(ph)})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: 8, cursor: "zoom-in" }} />
                 ))}
               </div>
             )}
@@ -263,7 +286,7 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false }
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start" }}>
             {photos.map((ph, idx) => (
               <div key={ph.id} style={{ position: "relative", width: 88, height: 66, borderRadius: 8, overflow: "hidden", flexShrink: 0, border: "1px solid var(--bd)" }}>
-                <div onClick={() => setLightbox(idx)} style={{ width: "100%", height: "100%", backgroundImage: `url(${ph.data})`, backgroundSize: "cover", backgroundPosition: "center", cursor: "zoom-in" }} />
+                <div onClick={() => setLightbox(idx)} style={{ width: "100%", height: "100%", backgroundImage: `url(${getPhotoSrc(ph)})`, backgroundSize: "cover", backgroundPosition: "center", cursor: "zoom-in" }} />
                 <button onClick={() => removePhoto(ph.id)} style={{ position: "absolute", top: 3, right: 3, width: 18, height: 18, borderRadius: "50%", background: "rgba(0,0,0,0.65)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <I.X size={9} />
                 </button>
