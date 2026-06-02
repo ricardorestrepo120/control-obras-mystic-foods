@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Card from '../ui/Card.jsx';
 import SecLabel from '../ui/SecLabel.jsx';
 import Pill from '../ui/Pill.jsx';
@@ -10,7 +10,8 @@ import Empty from '../ui/Empty.jsx';
 import ProgressBar from '../ui/ProgressBar.jsx';
 import { I } from '../icons/index.jsx';
 import { col, fx, tc } from '../../lib/utils.js';
-import { compressImage } from '../../lib/dataModel.js';
+import { compressImage, getPhotoSrc } from '../../lib/dataModel.js';
+import { storage } from '../../lib/supabase.js';
 
 const freshForm = () => ({ nombre: "", cantidad: 1, proveedor: "", foto: null, estado: "Pendiente" });
 
@@ -29,6 +30,10 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
   const [form,      setForm]      = useState(freshForm);
   const [uploading, setUploading] = useState(false);
 
+  // Tracks the storagePath of a photo uploaded in the current open form that
+  // has NOT yet been committed — needs Storage cleanup on cancel/replacement.
+  const pendingFotoPathRef = useRef(null);
+
   const patch = (id, ch) => upd("mobiliario", prev => prev.map(x => x.id === id ? { ...x, ...ch } : x));
 
   const handlePhoto = async files => {
@@ -36,46 +41,82 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
     if (!file) return;
     setUploading(true);
     try {
-      const data = await compressImage(file);
-      setForm(f => ({ ...f, foto: { id: `mf-${crypto.randomUUID()}`, name: file.name, data } }));
+      // If a previous (uncommitted) foto was already uploaded, discard it
+      if (pendingFotoPathRef.current) {
+        storage.remove([pendingFotoPathRef.current]).catch(console.error);
+        pendingFotoPathRef.current = null;
+      }
+      const photoId = `mf-${crypto.randomUUID()}`;
+      console.log(`[mobiliario] foto: ${file.name} (${file.type}, ${(file.size / 1024).toFixed(0)}KB)`);
+      const dataUrl = await compressImage(file);
+      const url     = await storage.upload(dataUrl, draft.id, photoId);
+      const storagePath = `${draft.id}/${photoId}.jpg`;
+      pendingFotoPathRef.current = storagePath;
+      setForm(f => ({ ...f, foto: { id: photoId, name: file.name, url, storagePath } }));
+    } catch (err) {
+      console.error("[mobiliario] ❌ foto upload error:", err);
     } finally {
       setUploading(false);
     }
   };
 
+  // Removes the currently previewed foto from the form AND cleans it up from
+  // Storage if it was a newly uploaded (pending) one.
+  const handleRemoveFoto = () => {
+    if (pendingFotoPathRef.current) {
+      storage.remove([pendingFotoPathRef.current]).catch(console.error);
+      pendingFotoPathRef.current = null;
+    }
+    setForm(f => ({ ...f, foto: null }));
+  };
+
+  const cancelForm = () => {
+    // Clean up any foto that was uploaded but never persisted
+    if (pendingFotoPathRef.current) {
+      storage.remove([pendingFotoPathRef.current]).catch(console.error);
+      pendingFotoPathRef.current = null;
+    }
+    setAdding(false); setEditId(null); setForm(freshForm());
+  };
+
   const commitAdd = () => {
     if (!form.nombre.trim()) return;
-    const newItem = {
+    pendingFotoPathRef.current = null; // foto is now persisted — no cleanup needed
+    upd("mobiliario", prev => [...prev, {
       id: `mob-${crypto.randomUUID()}`,
-      nombre: form.nombre.trim(),
-      cantidad: Math.max(1, Number(form.cantidad) || 1),
+      nombre:    form.nombre.trim(),
+      cantidad:  Math.max(1, Number(form.cantidad) || 1),
       proveedor: form.proveedor.trim(),
-      foto: form.foto,
-      estado: form.estado,
-    };
-    upd("mobiliario", prev => [...prev, newItem]);
+      foto:      form.foto,
+      estado:    form.estado,
+    }]);
     setForm(freshForm()); setAdding(false);
   };
 
   const commitEdit = () => {
     if (!form.nombre.trim()) return;
+    // If the foto was replaced, remove the old one from Storage
+    const original = items.find(x => x.id === editId);
+    if (original?.foto?.storagePath && original.foto.id !== form.foto?.id) {
+      storage.remove([original.foto.storagePath]).catch(console.error);
+    }
+    pendingFotoPathRef.current = null; // new foto is now persisted
     patch(editId, {
-      nombre: form.nombre.trim(),
-      cantidad: Math.max(1, Number(form.cantidad) || 1),
+      nombre:    form.nombre.trim(),
+      cantidad:  Math.max(1, Number(form.cantidad) || 1),
       proveedor: form.proveedor.trim(),
-      foto: form.foto,
-      estado: form.estado,
+      foto:      form.foto,
+      estado:    form.estado,
     });
     setEditId(null); setForm(freshForm());
   };
 
   const openEdit = item => {
-    setAdding(false);
-    setForm({ nombre: item.nombre, cantidad: item.cantidad, proveedor: item.proveedor || "", foto: item.foto || null, estado: item.estado });
+    // cancelForm cleans up any pending foto from an abandoned previous session
+    cancelForm();
+    setForm({ nombre: item.nombre, cantidad: item.cantidad, proveedor: item.proveedor || "", foto: item.foto ?? null, estado: item.estado });
     setEditId(item.id);
   };
-
-  const cancelForm = () => { setAdding(false); setEditId(null); setForm(freshForm()); };
 
   return (
     <div className="fu" style={col({ gap: 14 })}>
@@ -103,7 +144,7 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
       {/* Lista */}
       <Card>
         <SecLabel action={!readOnly && !adding && !editId && (
-          <Btn size="sm" variant="soft" icon={<I.Plus size={13} />} onClick={() => { setForm(freshForm()); setAdding(true); }}>
+          <Btn size="sm" variant="soft" icon={<I.Plus size={13} />} onClick={() => { cancelForm(); setAdding(true); }}>
             Agregar item
           </Btn>
         )}>
@@ -111,7 +152,8 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
         </SecLabel>
 
         {adding && (
-          <ItemForm form={form} setForm={setForm} uploading={uploading} onPhoto={handlePhoto}
+          <ItemForm form={form} setForm={setForm} uploading={uploading}
+            onPhoto={handlePhoto} onRemoveFoto={handleRemoveFoto}
             onSave={commitAdd} onCancel={cancelForm} saveLabel="Agregar" />
         )}
 
@@ -124,11 +166,15 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
           {sorted.map(item => (
             editId === item.id ? (
               <ItemForm key={item.id} form={form} setForm={setForm} uploading={uploading}
-                onPhoto={handlePhoto} onSave={commitEdit} onCancel={cancelForm} saveLabel="Guardar" />
+                onPhoto={handlePhoto} onRemoveFoto={handleRemoveFoto}
+                onSave={commitEdit} onCancel={cancelForm} saveLabel="Guardar" />
             ) : (
               <ItemRow key={item.id} item={item} readOnly={readOnly}
                 onEdit={() => openEdit(item)}
-                onRemove={() => upd("mobiliario", prev => prev.filter(x => x.id !== item.id))}
+                onRemove={() => {
+                  if (item.foto?.storagePath) storage.remove([item.foto.storagePath]).catch(console.error);
+                  upd("mobiliario", prev => prev.filter(x => x.id !== item.id));
+                }}
                 onToggle={() => patch(item.id, { estado: item.estado === "Listo" ? "Pendiente" : "Listo" })}
               />
             )
@@ -139,7 +185,8 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
   );
 }
 
-function ItemForm({ form, setForm, uploading, onPhoto, onSave, onCancel, saveLabel }) {
+// ── ItemForm ──────────────────────────────────────────────────────────────
+function ItemForm({ form, setForm, uploading, onPhoto, onRemoveFoto, onSave, onCancel, saveLabel }) {
   return (
     <div style={{ background: "var(--bg-soft)", border: "1px solid var(--bd)", borderRadius: 10, padding: 14, marginBottom: 12 }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 90px", gap: 10, marginBottom: 10 }}>
@@ -187,9 +234,9 @@ function ItemForm({ form, setForm, uploading, onPhoto, onSave, onCancel, saveLab
         {form.foto ? (
           <div style={fx({ gap: 10, alignItems: "center" })}>
             <div style={{ width: 64, height: 64, borderRadius: 8, overflow: "hidden", flexShrink: 0, border: "1px solid var(--bd)" }}>
-              <img src={form.foto.data} alt={form.foto.name || "foto"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <img src={getPhotoSrc(form.foto)} alt={form.foto.name || "foto"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
-            <Btn size="sm" variant="ghost" icon={<I.Trash size={13} />} onClick={() => setForm(f => ({ ...f, foto: null }))}>
+            <Btn size="sm" variant="ghost" icon={<I.Trash size={13} />} onClick={onRemoveFoto}>
               Quitar foto
             </Btn>
           </div>
@@ -201,7 +248,7 @@ function ItemForm({ form, setForm, uploading, onPhoto, onSave, onCancel, saveLab
             style={{ display: "block", padding: "10px 14px", textAlign: "center", cursor: uploading ? "wait" : "pointer",
               background: "var(--bg-elev)", border: "1.5px dashed var(--bd-strong)", borderRadius: 10,
               fontSize: 12, color: "var(--tx-3)", opacity: uploading ? .7 : 1, transition: "border-color .15s" }}>
-            {uploading ? "Procesando…" : "Haz clic o arrastra una imagen · JPG, PNG, WEBP"}
+            {uploading ? "Subiendo foto…" : "Haz clic o arrastra una imagen · JPG, PNG, WEBP"}
             <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploading}
               onChange={e => { onPhoto(e.target.files); e.target.value = ""; }} />
           </label>
@@ -216,9 +263,17 @@ function ItemForm({ form, setForm, uploading, onPhoto, onSave, onCancel, saveLab
   );
 }
 
+// ── ItemRow ───────────────────────────────────────────────────────────────
 function ItemRow({ item, readOnly, onEdit, onRemove, onToggle }) {
   const [lightbox, setLightbox] = useState(false);
   const isListo = item.estado === "Listo";
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = e => { if (e.key === "Escape") setLightbox(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox]);
 
   return (
     <>
@@ -228,7 +283,7 @@ function ItemRow({ item, readOnly, onEdit, onRemove, onToggle }) {
         {item.foto ? (
           <div onClick={() => setLightbox(true)}
             style={{ width: 48, height: 48, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "zoom-in", border: "1px solid var(--bd)" }}>
-            <img src={item.foto.data} alt={item.foto.name || "foto"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={getPhotoSrc(item.foto)} alt={item.foto.name || "foto"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
         ) : (
           <div style={{ width: 48, height: 48, borderRadius: 8, background: "var(--bg-elev)", border: "1px solid var(--bd)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--tx-4)" }}>
@@ -273,11 +328,11 @@ function ItemRow({ item, readOnly, onEdit, onRemove, onToggle }) {
         </div>
       </div>
 
-      {/* Lightbox */}
+      {/* Lightbox — single photo, Escape to close */}
       {lightbox && item.foto && (
         <div onClick={() => setLightbox(false)}
           style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.93)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <img src={item.foto.data} alt={item.foto.name || ""}
+          <img src={getPhotoSrc(item.foto)} alt={item.foto.name || ""}
             style={{ maxWidth: "82vw", maxHeight: "82vh", objectFit: "contain", borderRadius: 8, display: "block" }} />
           <button onClick={() => setLightbox(false)}
             style={{ position: "absolute", top: 14, right: 14, width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,.13)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>

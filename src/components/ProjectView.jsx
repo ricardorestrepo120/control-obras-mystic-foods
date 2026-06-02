@@ -53,7 +53,7 @@ export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSav
     }));
     const mobMeta = (_mob ?? []).map(m => ({
       id: m.id, nombre: m.nombre, cantidad: m.cantidad,
-      proveedor: m.proveedor, estado: m.estado, _hf: !!m.foto,
+      proveedor: m.proveedor, estado: m.estado, _fid: m.foto?.id ?? null,
     }));
     const clMeta = (_cl ?? []).map(c => ({
       id: c.id, text: c.text, done: c.done, assignee: c.assignee,
