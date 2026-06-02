@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Card from '../ui/Card.jsx';
 import Btn from '../ui/Btn.jsx';
 import IconBtn from '../ui/IconBtn.jsx';
@@ -147,19 +147,7 @@ export default function ProjectCronograma({ draft, setDraft, readOnly = false })
               minWidth: NAME_W + 280 + STATE_W,
             }}>
               <div style={{ width: NAME_W, flexShrink: 0, fontSize: 10, fontWeight: 600, color: 'var(--tx-3)', textTransform: 'uppercase', letterSpacing: .5 }}>Fase</div>
-              <div style={{ flex: 1, position: 'relative', height: 18 }}>
-                {[0, 15, 30, 45, 60].map(d => (
-                  <div key={d} style={{
-                    position: 'absolute',
-                    left: `${d / MAX_DAYS * 100}%`,
-                    top: 2,
-                    transform: d === MAX_DAYS ? 'translateX(-100%)' : d === 0 ? 'none' : 'translateX(-50%)',
-                    fontSize: 10, fontWeight: 600, color: 'var(--tx-4)', letterSpacing: .3, userSelect: 'none',
-                  }}>
-                    {d === 0 ? 'Día 0' : `${d}d`}
-                  </div>
-                ))}
-              </div>
+              <DayHeader maxDays={MAX_DAYS} />
               <div style={{ width: STATE_W, flexShrink: 0, fontSize: 10, fontWeight: 600, color: 'var(--tx-3)', textTransform: 'uppercase', letterSpacing: .5, textAlign: 'center' }}>Estado</div>
             </div>
 
@@ -216,6 +204,60 @@ export default function ProjectCronograma({ draft, setDraft, readOnly = false })
         </div>
       </div>
 
+    </div>
+  );
+}
+
+// ── DayHeader ──────────────────────────────────────────────────────────────
+// Renders day numbers 1-60 with density adapted to the available bar width.
+// Uses a ResizeObserver so the label step recalculates on every resize.
+function DayHeader({ maxDays }) {
+  const ref = useRef(null);
+  const [barW, setBarW] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setBarW(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Minimum pixels between label centers before we start skipping
+  const LABEL_MIN_PX = 13;
+  const pxPerDay = barW > 0 ? barW / maxDays : 0;
+  let step = 1;
+  if (pxPerDay > 0 && pxPerDay < LABEL_MIN_PX) {
+    step = Math.ceil(LABEL_MIN_PX / pxPerDay);
+    // Round up to a "clean" interval so labels fall on round numbers
+    if (step <= 2)  step = 2;
+    else if (step <= 5)  step = 5;
+    else if (step <= 10) step = 10;
+    else step = 15;
+  }
+
+  return (
+    <div ref={ref} style={{ flex: 1, position: 'relative', height: 18 }}>
+      {Array.from({ length: maxDays }, (_, i) => {
+        const d = i + 1;
+        if (d !== maxDays && d % step !== 0) return null;
+        return (
+          <div key={d} style={{
+            position: 'absolute',
+            left: `${d / maxDays * 100}%`,
+            top: 3,
+            transform: d === maxDays ? 'translateX(-100%)' : 'translateX(-50%)',
+            fontSize: 9,
+            fontWeight: 600,
+            color: 'var(--tx-4)',
+            userSelect: 'none',
+            lineHeight: 1,
+            letterSpacing: 0,
+          }}>
+            {d}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -303,12 +345,14 @@ function GanttRow({ fase, dias, startFrac, widthFrac, readOnly, isLast, onPatch,
 
       {/* ── Barra ── */}
       <div style={{ flex: 1, position: 'relative', height: 26, background: 'var(--bg-soft)', borderRadius: 6 }}>
-        {/* Grid lines at 15, 30, 45 */}
-        {[15, 30, 45].map(d => (
+        {/* Day separator lines — every day, 5-day marks slightly more prominent */}
+        {Array.from({ length: MAX_DAYS - 1 }, (_, i) => i + 1).map(d => (
           <div key={d} style={{
             position: 'absolute', top: 0, bottom: 0,
             left: `${d / MAX_DAYS * 100}%`,
-            width: 1, background: 'var(--bd)', opacity: 0.6,
+            width: 1,
+            background: 'var(--bd)',
+            opacity: d % 5 === 0 ? 0.55 : 0.18,
           }} />
         ))}
         {/* Bar */}
