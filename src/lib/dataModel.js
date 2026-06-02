@@ -123,6 +123,7 @@ export const encodeShare = p => {
       photos: (p.photos ?? []).map(ph => ({ ...ph, data: "" })),
       visitas: (p.visitas ?? []).map(v => ({ ...v, photos: (v.photos ?? []).map(ph => ({ ...ph, data: "" })) })),
       mobiliario: (p.mobiliario ?? []).map(m => ({ ...m, foto: m.foto ? { ...m.foto, data: "" } : null })),
+      checklist: (p.checklist ?? []).map(c => ({ ...c, photos: (c.photos ?? []).map(ph => ({ ...ph, data: "" })) })),
     };
     const bytes = new TextEncoder().encode(JSON.stringify(clean));
     return btoa(Array.from(bytes, b => String.fromCharCode(b)).join(""));

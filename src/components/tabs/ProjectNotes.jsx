@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import Card from '../ui/Card.jsx';
 import SecLabel from '../ui/SecLabel.jsx';
 import Pill from '../ui/Pill.jsx';
@@ -11,6 +11,7 @@ import Avatar from '../ui/Avatar.jsx';
 import AssigneeInput from '../ui/AssigneeInput.jsx';
 import { I } from '../icons/index.jsx';
 import { col, fx, tc, fmtDate, daysUntil } from '../../lib/utils.js';
+import { compressImage } from '../../lib/dataModel.js';
 
 export default function ProjectNotes({ draft, upd, readOnly = false }) {
   const list = draft.checklist ?? [];
@@ -28,7 +29,7 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
 
   const addItem = () => {
     if (!form.text.trim()) return;
-    upd("checklist", prev => [...prev, { id: `cl-${crypto.randomUUID()}`, text: form.text.trim(), done: false, assignee: form.assignee.trim() || "", reminder: form.rem ? { date: form.rem, time: form.time } : null }]);
+    upd("checklist", prev => [...prev, { id: `cl-${crypto.randomUUID()}`, text: form.text.trim(), done: false, assignee: form.assignee.trim() || "", reminder: form.rem ? { date: form.rem, time: form.time } : null, photos: [], comment: "" }]);
     setForm({ text: "", rem: "", time: "", assignee: "" }); setAdding(false);
   };
   const patch = (id, ch) => upd("checklist", prev => prev.map(x => x.id === id ? { ...x, ...ch } : x));
@@ -87,45 +88,137 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
 function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false }) {
   const [editRem,  setEditRem]  = useState(false);
   const [editAsgn, setEditAsgn] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const due = item.reminder?.date ? daysUntil(item.reminder.date) : null;
   const remToken = (!item.done && due !== null && due < 0) ? "danger" : (!item.done && due !== null && due <= 3) ? "warn" : "info";
+  const photos = item.photos ?? [];
+  const comment = item.comment ?? "";
+  const hasExtra = photos.length > 0 || comment.trim();
+
+  const uploadPhotos = async files => {
+    const valid = Array.from(files).filter(f => f.type.startsWith("image/"));
+    if (!valid.length) return;
+    setUploading(true);
+    try {
+      const newPhotos = await Promise.all(valid.map(async f => {
+        const data = await compressImage(f);
+        return { id: `ph-${crypto.randomUUID()}`, name: f.name, data, uploadedAt: Date.now() };
+      }));
+      onPatch({ photos: [...photos, ...newPhotos] });
+    } catch (e) {
+      console.error("[checklist] photo upload error:", e);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removePhoto = id => onPatch({ photos: photos.filter(p => p.id !== id) });
+
+  const chevronStyle = { transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .15s" };
 
   if (readOnly) return (
-    <div style={fx({ gap: 10, padding: "10px 12px", background: "var(--bg-soft)", borderRadius: 10, flexWrap: "wrap" })}>
-      <div style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${item.done ? "var(--ok)" : "var(--bd-strong)"}`, background: item.done ? "var(--ok)" : "transparent", color: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{item.done && <I.Check size={11} sw={3} />}</div>
-      <div style={{ flex: 1, fontSize: 13, color: "var(--tx)", textDecoration: item.done ? "line-through" : "none" }}>{item.text}</div>
-      {item.assignee && <span style={fx({ gap: 5, fontSize: 11, color: "var(--tx-3)" })}><Avatar name={item.assignee} size={18} />{item.assignee}</span>}
-      {item.reminder?.date && <Pill token={due !== null && due < 0 && !item.done ? "danger" : "info"} size="sm">{fmtDate(item.reminder.date)}</Pill>}
+    <div style={col({ background: "var(--bg-soft)", borderRadius: 10, overflow: "hidden" })}>
+      <div style={fx({ gap: 10, padding: "10px 12px", flexWrap: "wrap" })}>
+        <div style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${item.done ? "var(--ok)" : "var(--bd-strong)"}`, background: item.done ? "var(--ok)" : "transparent", color: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{item.done && <I.Check size={11} sw={3} />}</div>
+        <div style={{ flex: 1, fontSize: 13, color: "var(--tx)", textDecoration: item.done ? "line-through" : "none" }}>{item.text}</div>
+        {item.assignee && <span style={fx({ gap: 5, fontSize: 11, color: "var(--tx-3)" })}><Avatar name={item.assignee} size={18} />{item.assignee}</span>}
+        {item.reminder?.date && <Pill token={due !== null && due < 0 && !item.done ? "danger" : "info"} size="sm">{fmtDate(item.reminder.date)}</Pill>}
+        {hasExtra && (
+          <button onClick={() => setExpanded(e => !e)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--tx-3)", display: "flex", alignItems: "center", padding: 2, borderRadius: 4 }}>
+            <I.ChevronD size={14} style={chevronStyle} />
+          </button>
+        )}
+      </div>
+      {expanded && hasExtra && (
+        <div style={{ borderTop: "1px solid var(--bd)", padding: "10px 12px", gap: 10, display: "flex", flexDirection: "column" }}>
+          {comment.trim() && <div style={{ fontSize: 13, color: "var(--tx-2)", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{comment}</div>}
+          {photos.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 8 }}>
+              {photos.map(ph => (
+                <div key={ph.id} style={{ aspectRatio: "4/3", backgroundImage: `url(${ph.data})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: 8 }} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 
   return (
-    <div style={fx({ gap: 8, padding: "10px 12px", background: "var(--bg-soft)", borderRadius: 10, flexWrap: "wrap" })}>
-      <button onClick={() => onPatch({ done: !item.done })} style={{ width: 20, height: 20, borderRadius: 6, border: `1.5px solid ${item.done ? "var(--ok)" : "var(--bd-strong)"}`, background: item.done ? "var(--ok)" : "transparent", color: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-        {item.done && <I.Check size={12} sw={3} />}
-      </button>
-      <input
-        value={item.text ?? ""}
-        onChange={e => onPatch({ text: e.target.value })}
-        placeholder="Escribe el pendiente…"
-        style={{ flex: "1 1 160px", minWidth: 0, border: "none", borderBottom: "1.5px solid transparent", background: "transparent", fontSize: 13, color: "var(--tx)", outline: "none", textDecoration: item.done ? "line-through" : "none", padding: "1px 0", transition: "border-color .12s" }}
-        onFocus={e => { e.currentTarget.style.borderBottomColor = "var(--accent)"; }}
-        onBlur={e  => { e.currentTarget.style.borderBottomColor = "transparent"; }}
-      />
-      {!editAsgn && item.assignee && <button onClick={() => setEditAsgn(true)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px 3px 3px", fontSize: 11, fontWeight: 500, background: "var(--bg-elev)", color: "var(--tx-2)", border: "1px solid var(--bd)", borderRadius: 999, cursor: "pointer" }}><Avatar name={item.assignee} size={18} />{item.assignee}</button>}
-      {!editAsgn && !item.assignee && <IconBtn icon={<I.User size={13} />} onClick={() => setEditAsgn(true)} title="Asignar" />}
-      {editAsgn && <div style={fx({ gap: 4 })}><AssigneeInput value={item.assignee || ""} onChange={v => onPatch({ assignee: v })} suggestions={suggestions} compact autoFocus /><IconBtn icon={<I.Check size={13} />} onClick={() => setEditAsgn(false)} title="Listo" /></div>}
-      {!editRem && item.reminder?.date && <button onClick={() => setEditRem(true)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", fontSize: 11, fontWeight: 500, background: tc(remToken).bg, color: tc(remToken).fg, border: "none", borderRadius: 999, cursor: "pointer" }}><I.Calendar size={10} />{fmtDate(item.reminder.date)}{item.reminder.time && ` ${item.reminder.time}`}</button>}
-      {!editRem && !item.reminder?.date && <IconBtn icon={<I.Calendar size={13} />} onClick={() => setEditRem(true)} title="Recordatorio" />}
-      {editRem && (
-        <div style={fx({ gap: 4 })}>
-          <Input type="date" value={item.reminder?.date || ""} onChange={e => onPatch({ reminder: { ...item.reminder, date: e.target.value } })} style={{ height: 28, fontSize: 11, padding: "0 6px" }} />
-          <Input type="time" value={item.reminder?.time || ""} onChange={e => onPatch({ reminder: { ...item.reminder, time: e.target.value } })} style={{ height: 28, fontSize: 11, padding: "0 6px", width: 80 }} />
-          {item.reminder?.date && <IconBtn icon={<I.X size={12} />} onClick={() => { onPatch({ reminder: null }); setEditRem(false); }} title="Quitar" />}
-          <IconBtn icon={<I.Check size={13} />} onClick={() => setEditRem(false)} title="Listo" />
+    <div style={col({ background: "var(--bg-soft)", borderRadius: 10, overflow: "hidden" })}>
+      <div style={fx({ gap: 8, padding: "10px 12px", flexWrap: "wrap" })}>
+        <button onClick={() => onPatch({ done: !item.done })} style={{ width: 20, height: 20, borderRadius: 6, border: `1.5px solid ${item.done ? "var(--ok)" : "var(--bd-strong)"}`, background: item.done ? "var(--ok)" : "transparent", color: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+          {item.done && <I.Check size={12} sw={3} />}
+        </button>
+        <input
+          value={item.text ?? ""}
+          onChange={e => onPatch({ text: e.target.value })}
+          placeholder="Escribe el pendiente…"
+          style={{ flex: "1 1 160px", minWidth: 0, border: "none", borderBottom: "1.5px solid transparent", background: "transparent", fontSize: 13, color: "var(--tx)", outline: "none", textDecoration: item.done ? "line-through" : "none", padding: "1px 0", transition: "border-color .12s" }}
+          onFocus={e => { e.currentTarget.style.borderBottomColor = "var(--accent)"; }}
+          onBlur={e  => { e.currentTarget.style.borderBottomColor = "transparent"; }}
+        />
+        {!editAsgn && item.assignee && <button onClick={() => setEditAsgn(true)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px 3px 3px", fontSize: 11, fontWeight: 500, background: "var(--bg-elev)", color: "var(--tx-2)", border: "1px solid var(--bd)", borderRadius: 999, cursor: "pointer" }}><Avatar name={item.assignee} size={18} />{item.assignee}</button>}
+        {!editAsgn && !item.assignee && <IconBtn icon={<I.User size={13} />} onClick={() => setEditAsgn(true)} title="Asignar" />}
+        {editAsgn && <div style={fx({ gap: 4 })}><AssigneeInput value={item.assignee || ""} onChange={v => onPatch({ assignee: v })} suggestions={suggestions} compact autoFocus /><IconBtn icon={<I.Check size={13} />} onClick={() => setEditAsgn(false)} title="Listo" /></div>}
+        {!editRem && item.reminder?.date && <button onClick={() => setEditRem(true)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", fontSize: 11, fontWeight: 500, background: tc(remToken).bg, color: tc(remToken).fg, border: "none", borderRadius: 999, cursor: "pointer" }}><I.Calendar size={10} />{fmtDate(item.reminder.date)}{item.reminder.time && ` ${item.reminder.time}`}</button>}
+        {!editRem && !item.reminder?.date && <IconBtn icon={<I.Calendar size={13} />} onClick={() => setEditRem(true)} title="Recordatorio" />}
+        {editRem && (
+          <div style={fx({ gap: 4 })}>
+            <Input type="date" value={item.reminder?.date || ""} onChange={e => onPatch({ reminder: { ...item.reminder, date: e.target.value } })} style={{ height: 28, fontSize: 11, padding: "0 6px" }} />
+            <Input type="time" value={item.reminder?.time || ""} onChange={e => onPatch({ reminder: { ...item.reminder, time: e.target.value } })} style={{ height: 28, fontSize: 11, padding: "0 6px", width: 80 }} />
+            {item.reminder?.date && <IconBtn icon={<I.X size={12} />} onClick={() => { onPatch({ reminder: null }); setEditRem(false); }} title="Quitar" />}
+            <IconBtn icon={<I.Check size={13} />} onClick={() => setEditRem(false)} title="Listo" />
+          </div>
+        )}
+        <IconBtn
+          icon={<I.ChevronD size={13} style={chevronStyle} />}
+          onClick={() => setExpanded(e => !e)}
+          title={expanded ? "Colapsar" : "Fotos y comentario"}
+        />
+        <IconBtn icon={<I.Trash size={13} />} onClick={onRemove} title="Eliminar" />
+      </div>
+      {expanded && (
+        <div style={{ borderTop: "1px solid var(--bd)", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+          <textarea
+            value={comment}
+            onChange={e => onPatch({ comment: e.target.value })}
+            placeholder="Notas o comentarios…"
+            rows={2}
+            style={{ width: "100%", resize: "vertical", border: "1px solid var(--bd)", borderRadius: 8, background: "var(--bg-elev)", color: "var(--tx)", fontSize: 13, padding: "8px 10px", outline: "none", fontFamily: "inherit", boxSizing: "border-box", transition: "border-color .12s" }}
+            onFocus={e => { e.currentTarget.style.borderColor = "var(--accent)"; }}
+            onBlur={e  => { e.currentTarget.style.borderColor = "var(--bd)"; }}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={e => { uploadPhotos(e.target.files); e.target.value = ""; }}
+          />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start" }}>
+            {photos.map(ph => (
+              <div key={ph.id} style={{ position: "relative", width: 88, height: 66, borderRadius: 8, overflow: "hidden", flexShrink: 0, border: "1px solid var(--bd)" }}>
+                <div style={{ width: "100%", height: "100%", backgroundImage: `url(${ph.data})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                <button
+                  onClick={() => removePhoto(ph.id)}
+                  style={{ position: "absolute", top: 3, right: 3, width: 18, height: 18, borderRadius: "50%", background: "rgba(0,0,0,0.65)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <I.X size={9} />
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              style={{ width: 88, height: 66, borderRadius: 8, border: "1.5px dashed var(--bd-strong)", background: "var(--bg-elev)", color: "var(--tx-3)", cursor: uploading ? "wait" : "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 11, flexShrink: 0, opacity: uploading ? 0.6 : 1 }}>
+              {uploading ? <span style={{ fontSize: 13, fontWeight: 600 }}>…</span> : <><I.Camera size={15} /><span>Foto</span></>}
+            </button>
+          </div>
         </div>
       )}
-      <IconBtn icon={<I.Trash size={13} />} onClick={onRemove} title="Eliminar" />
     </div>
   );
 }

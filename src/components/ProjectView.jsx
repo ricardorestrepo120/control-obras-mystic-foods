@@ -46,18 +46,20 @@ export default function ProjectView({ draft, isNew, upd, setDraft, onBack, onSav
 
   const draftKey = useMemo(() => {
     if (isNew || !draft?.name?.trim()) return null;
-    const { photos: _p, visitas: _v, mobiliario: _mob, ...rest } = draft;
+    const { photos: _p, visitas: _v, mobiliario: _mob, checklist: _cl, ...rest } = draft;
     const visitasMeta = (_v ?? []).map(v => ({
       id: v.id, date: v.date, time: v.time, quien: v.quien,
       observaciones: v.observaciones, _pc: v.photos?.length ?? 0,
     }));
-    // Strip foto data from mobiliario the same way photos/visitas are stripped —
-    // keeps the key small while still reacting to every meaningful field change.
     const mobMeta = (_mob ?? []).map(m => ({
       id: m.id, nombre: m.nombre, cantidad: m.cantidad,
       proveedor: m.proveedor, estado: m.estado, _hf: !!m.foto,
     }));
-    return JSON.stringify({ ...rest, _pc: _p?.length ?? 0, _vm: visitasMeta, _mob: mobMeta });
+    const clMeta = (_cl ?? []).map(c => ({
+      id: c.id, text: c.text, done: c.done, assignee: c.assignee,
+      reminder: c.reminder, comment: c.comment, _pc: c.photos?.length ?? 0,
+    }));
+    return JSON.stringify({ ...rest, _pc: _p?.length ?? 0, _vm: visitasMeta, _mob: mobMeta, checklist: clMeta });
   }, [draft, isNew]);
 
   useEffect(() => {
