@@ -25,10 +25,11 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
   const listos = items.filter(x => x.estado === "Listo").length;
   const pct    = items.length ? Math.round(listos / items.length * 100) : 0;
 
-  const [adding,    setAdding]    = useState(false);
-  const [editId,    setEditId]    = useState(null);
-  const [form,      setForm]      = useState(freshForm);
-  const [uploading, setUploading] = useState(false);
+  const [adding,      setAdding]      = useState(false);
+  const [editId,      setEditId]      = useState(null);
+  const [form,        setForm]        = useState(freshForm);
+  const [uploading,   setUploading]   = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   // Tracks the storagePath of a photo uploaded in the current open form that
   // has NOT yet been committed — needs Storage cleanup on cancel/replacement.
@@ -40,6 +41,7 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
     const file = Array.from(files).find(f => f.type.startsWith("image/"));
     if (!file) return;
     setUploading(true);
+    setUploadError("");
     try {
       // If a previous (uncommitted) foto was already uploaded, discard it
       if (pendingFotoPathRef.current) {
@@ -54,6 +56,7 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
       setForm(f => ({ ...f, foto: { id: photoId, name: file.name, url, storagePath } }));
     } catch (err) {
       console.error("[mobiliario] ❌ foto upload error:", err);
+      setUploadError(err.message);
     } finally {
       setUploading(false);
     }
@@ -75,7 +78,7 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
       storage.remove([pendingFotoPathRef.current]).catch(console.error);
       pendingFotoPathRef.current = null;
     }
-    setAdding(false); setEditId(null); setForm(freshForm());
+    setAdding(false); setEditId(null); setForm(freshForm()); setUploadError("");
   };
 
   const commitAdd = () => {
@@ -89,7 +92,7 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
       foto:      form.foto,
       estado:    form.estado,
     }]);
-    setForm(freshForm()); setAdding(false);
+    setForm(freshForm()); setAdding(false); setUploadError("");
   };
 
   const commitEdit = () => {
@@ -107,7 +110,7 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
       foto:      form.foto,
       estado:    form.estado,
     });
-    setEditId(null); setForm(freshForm());
+    setEditId(null); setForm(freshForm()); setUploadError("");
   };
 
   const openEdit = item => {
@@ -152,6 +155,7 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
 
         {adding && (
           <ItemForm form={form} setForm={setForm} uploading={uploading}
+            uploadError={uploadError} onDismissError={() => setUploadError("")}
             onPhoto={handlePhoto} onRemoveFoto={handleRemoveFoto}
             onSave={commitAdd} onCancel={cancelForm} saveLabel="Agregar" />
         )}
@@ -165,6 +169,7 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
           {sorted.map(item => (
             editId === item.id ? (
               <ItemForm key={item.id} form={form} setForm={setForm} uploading={uploading}
+                uploadError={uploadError} onDismissError={() => setUploadError("")}
                 onPhoto={handlePhoto} onRemoveFoto={handleRemoveFoto}
                 onSave={commitEdit} onCancel={cancelForm} saveLabel="Guardar" />
             ) : (
@@ -185,7 +190,7 @@ export default function ProjectMobiliario({ draft, upd, readOnly = false }) {
 }
 
 // ── ItemForm ──────────────────────────────────────────────────────────────
-function ItemForm({ form, setForm, uploading, onPhoto, onRemoveFoto, onSave, onCancel, saveLabel }) {
+function ItemForm({ form, setForm, uploading, uploadError, onDismissError, onPhoto, onRemoveFoto, onSave, onCancel, saveLabel }) {
   return (
     <div style={{ background: "var(--bg-soft)", border: "1px solid var(--bd)", borderRadius: 10, padding: 14, marginBottom: 12 }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 90px", gap: 10, marginBottom: 10 }}>
@@ -230,6 +235,12 @@ function ItemForm({ form, setForm, uploading, onPhoto, onRemoveFoto, onSave, onC
 
       <div style={{ marginBottom: 14 }}>
         <Lbl>Foto</Lbl>
+        {uploadError && (
+          <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 500, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+            <span>⚠ {uploadError}</span>
+            <button onClick={onDismissError} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 14, lineHeight: 1, flexShrink: 0 }}>✕</button>
+          </div>
+        )}
         {form.foto ? (
           <div style={fx({ gap: 10, alignItems: "center" })}>
             <div style={{ width: 64, height: 64, borderRadius: 8, overflow: "hidden", flexShrink: 0, border: "1px solid var(--bd)" }}>

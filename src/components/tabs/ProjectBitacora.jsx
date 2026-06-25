@@ -38,19 +38,15 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
   const [uploading, setUploading]   = useState(false);
   const [uploadErr, setUploadErr]   = useState("");
 
-  const genRef              = useRef(0);
-  const uploadErrTimerRef   = useRef(null);
-  const editOriginalIdsRef  = useRef(new Set()); // IDs de fotos que existían al abrir edición
-  const pendingDeletesRef   = useRef([]);         // storagePaths a borrar al guardar edición
-
-  useEffect(() => () => { clearTimeout(uploadErrTimerRef.current); }, []);
+  const genRef             = useRef(0);
+  const editOriginalIdsRef = useRef(new Set()); // IDs de fotos que existían al abrir edición
+  const pendingDeletesRef  = useRef([]);        // storagePaths a borrar al guardar edición
 
   const uploadPhotos = async files => {
     const gen = ++genRef.current;
     const valid = Array.from(files).filter(f => f.type.startsWith("image/"));
     if (!valid.length) return;
     setUploading(true);
-    clearTimeout(uploadErrTimerRef.current);
     setUploadErr("");
     const added = [];
     try {
@@ -73,8 +69,7 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
       if (gen !== genRef.current) return;
       console.error("[bitacora] ❌ upload error:", err);
       if (added.length) storage.remove(added.map(p => p.storagePath)).catch(console.error);
-      setUploadErr(`Error al subir foto: ${err.message}`);
-      uploadErrTimerRef.current = setTimeout(() => setUploadErr(""), 3000);
+      setUploadErr(err.message);
     } finally {
       if (gen === genRef.current) setUploading(false);
     }
@@ -95,7 +90,6 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
     setForm({ date: visita.date, time: visita.time || "", quien: visita.quien || "", observaciones: visita.observaciones || "" });
     setFormPhotos(visita.photos ?? []);
     setAdding(true);
-    clearTimeout(uploadErrTimerRef.current);
     setUploadErr("");
   };
 
@@ -116,7 +110,6 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
 
   const saveVisita = () => {
     if (!form.date || uploading) return;
-    clearTimeout(uploadErrTimerRef.current);
     setUploadErr("");
     if (editingId) {
       if (pendingDeletesRef.current.length) {
@@ -168,7 +161,6 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
     setEditingId(null);
     setForm(freshForm());
     setFormPhotos([]);
-    clearTimeout(uploadErrTimerRef.current);
     setUploadErr("");
   };
 
@@ -224,7 +216,12 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
               <input type="file" multiple accept="image/*" style={{ display: "none" }}
                 onChange={e => { uploadPhotos(e.target.files); e.target.value = ""; }} />
             </label>
-            {uploadErr && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 6 }}>⚠ {uploadErr}</div>}
+            {uploadErr && (
+              <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 500, marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <span>⚠ {uploadErr}</span>
+                <button onClick={() => setUploadErr("")} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 14, lineHeight: 1, flexShrink: 0 }}>✕</button>
+              </div>
+            )}
             {formPhotos.length > 0 && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(80px,1fr))", gap: 6, marginTop: 10 }}>
                 {formPhotos.map(ph => (
