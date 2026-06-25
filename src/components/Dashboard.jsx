@@ -120,6 +120,13 @@ function ProjectCard({ project, onClick }) {
       </div>
       <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tx)", marginBottom: project.localNumber ? 2 : 10, letterSpacing: -.3 }}>{project.name || "Sin nombre"}</div>
       {project.localNumber && <div style={{ fontSize: 12, color: "var(--tx-3)", marginBottom: 10 }}>{project.localNumber}{project.localArea ? ` · ${project.localArea}` : ""}</div>}
+      {project.deliveryDate && (
+        <div style={fx({ gap: 8, background: "var(--bg-soft)", borderRadius: 8, padding: "6px 10px", marginBottom: 8 })}>
+          <span style={{ fontSize: 11, color: "var(--tx-3)" }}>Entrega</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--tx)" }}>{fmtDate(project.deliveryDate)}</span>
+          <DaysChip date={project.deliveryDate} />
+        </div>
+      )}
       {project.openingDate && (
         <div style={fx({ gap: 8, background: "var(--bg-soft)", borderRadius: 8, padding: "6px 10px", marginBottom: 8 })}>
           <span style={{ fontSize: 11, color: "var(--tx-3)" }}>Apertura</span>

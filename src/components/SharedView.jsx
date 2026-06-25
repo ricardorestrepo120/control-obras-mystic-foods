@@ -52,6 +52,11 @@ export default function SharedView({ project }) {
         <div style={fx({ flexWrap: "wrap", gap: 12, marginTop: 10, marginBottom: 18 })}>
           {project.localNumber && <span style={{ fontSize: 13, color: "var(--tx-2)" }}>{project.localNumber}{project.localArea ? ` · ${project.localArea}` : ""}</span>}
           <Pill token={STATUS_TOKEN[project.status]} dot>{project.status}</Pill>
+          {project.deliveryDate && (
+            <span style={fx({ gap: 6, fontSize: 13, color: "var(--tx-2)" })}>
+              <I.Calendar size={14} /> Entrega {fmtDateLong(project.deliveryDate)}<DaysChip date={project.deliveryDate} />
+            </span>
+          )}
           {project.openingDate && (
             <span style={fx({ gap: 6, fontSize: 13, color: "var(--tx-2)" })}>
               <I.Calendar size={14} /> Apertura {fmtDateLong(project.openingDate)}<DaysChip date={project.openingDate} />
@@ -102,12 +107,28 @@ function SharedInfoView({ project }) {
           </div>
         </Card>
       )}
-      {project.startDate && project.openingDate && (
+      {(project.startDate || project.deliveryDate || project.openingDate) && (
         <Card>
           <SecLabel>Cronograma</SecLabel>
-          <TimelineMini start={project.startDate} end={project.openingDate} />
+          <div style={col({ gap: 8, marginBottom: project.startDate && project.openingDate ? 14 : 0 })}>
+            {project.startDate   && <DateRow label="Inicio de obra"   date={project.startDate} />}
+            {project.deliveryDate && <DateRow label="Entrega de obra" date={project.deliveryDate} />}
+            {project.openingDate && <DateRow label="Apertura"         date={project.openingDate} />}
+          </div>
+          {project.startDate && project.openingDate && <TimelineMini start={project.startDate} end={project.openingDate} />}
         </Card>
       )}
+    </div>
+  );
+}
+
+function DateRow({ label, date }) {
+  return (
+    <div style={fx({ justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--bd)" })}>
+      <span style={{ fontSize: 13, color: "var(--tx-3)" }}>{label}</span>
+      <span style={fx({ gap: 8, fontSize: 13, fontWeight: 600, color: "var(--tx)" })}>
+        {fmtDateLong(date)}<DaysChip date={date} />
+      </span>
     </div>
   );
 }

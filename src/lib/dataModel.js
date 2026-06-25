@@ -92,7 +92,7 @@ export function makeProject() {
   return {
     id: `p-${crypto.randomUUID()}`,
     name: "", brand: BRANDS[0].id, localNumber: "", localArea: "",
-    status: "En planificación", startDate: "", openingDate: "", notes: "",
+    status: "En planificación", startDate: "", deliveryDate: "", openingDate: "", notes: "",
     createdAt: Date.now(),
     archived: false,
     contacts: [],
@@ -105,7 +105,8 @@ export function makeProject() {
 
 export function migrate(raw) {
   const o = { ...raw };
-  if (o.archived == null) o.archived = false;
+  if (o.archived == null)    o.archived = false;
+  if (o.deliveryDate == null) o.deliveryDate = "";
   if (!Array.isArray(o.contacts))        o.contacts = [];
   if (!Array.isArray(o.checklist))       o.checklist = [];
   if (!Array.isArray(o.aperturaItems))   o.aperturaItems = [];

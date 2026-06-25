@@ -26,6 +26,11 @@ export default function ProjectInfo({ draft, isNew, upd, contactForm, setContact
         <div style={fx({ flexWrap: "wrap", gap: 12, marginTop: 10 })}>
           {draft.localNumber && <span style={{ fontSize: 13, color: "var(--tx-2)" }}>{draft.localNumber}{draft.localArea ? ` · ${draft.localArea}` : ""}</span>}
           <Pill token={STATUS_TOKEN[draft.status]} dot>{draft.status}</Pill>
+          {draft.deliveryDate && (
+            <span style={fx({ gap: 6, fontSize: 13, color: "var(--tx-2)" })}>
+              <I.Calendar size={14} /> Entrega {fmtDateLong(draft.deliveryDate)}<DaysChip date={draft.deliveryDate} />
+            </span>
+          )}
           {draft.openingDate && (
             <span style={fx({ gap: 6, fontSize: 13, color: "var(--tx-2)" })}>
               <I.Calendar size={14} /> Apertura {fmtDateLong(draft.openingDate)}<DaysChip date={draft.openingDate} />
@@ -64,9 +69,10 @@ export default function ProjectInfo({ draft, isNew, upd, contactForm, setContact
         </Card>
         <Card>
           <SecLabel>Cronograma</SecLabel>
-          <div style={fx({ gap: 10, marginBottom: 12 })}>
-            <div style={{ flex: 1 }}><Lbl>Inicio</Lbl><Input type="date" value={draft.startDate || ""} onChange={e => upd("startDate", e.target.value)} /></div>
-            <div style={{ flex: 1 }}><Lbl>Apertura</Lbl><Input type="date" value={draft.openingDate || ""} onChange={e => upd("openingDate", e.target.value)} /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
+            <div><Lbl>Inicio</Lbl><Input type="date" value={draft.startDate || ""} onChange={e => upd("startDate", e.target.value)} /></div>
+            <div><Lbl>Entrega de obra</Lbl><Input type="date" value={draft.deliveryDate || ""} onChange={e => upd("deliveryDate", e.target.value)} /></div>
+            <div><Lbl>Apertura</Lbl><Input type="date" value={draft.openingDate || ""} onChange={e => upd("openingDate", e.target.value)} /></div>
           </div>
           {draft.startDate && draft.openingDate && <TimelineMini start={draft.startDate} end={draft.openingDate} />}
         </Card>
