@@ -307,7 +307,8 @@ function GanttRow({ fase, dias, startPx, widthPx, readOnly, isLast, onPatch, onR
               fontSize: 13, fontWeight: 600, color: 'var(--tx)',
               cursor: readOnly ? 'default' : 'text',
               marginBottom: 5,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              wordBreak: 'break-word',
+              lineHeight: 1.35,
             }}
           >
             {fase.nombre || '—'}
