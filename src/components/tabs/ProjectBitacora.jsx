@@ -32,13 +32,16 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
   }), [visitas]);
 
   const [adding, setAdding]         = useState(false);
+  const [editingId, setEditingId]   = useState(null);
   const [form, setForm]             = useState(freshForm);
   const [formPhotos, setFormPhotos] = useState([]);
   const [uploading, setUploading]   = useState(false);
   const [uploadErr, setUploadErr]   = useState("");
 
-  const genRef           = useRef(0);
-  const uploadErrTimerRef = useRef(null);
+  const genRef              = useRef(0);
+  const uploadErrTimerRef   = useRef(null);
+  const editOriginalIdsRef  = useRef(new Set()); // IDs de fotos que existían al abrir edición
+  const pendingDeletesRef   = useRef([]);         // storagePaths a borrar al guardar edición
 
   useEffect(() => () => { clearTimeout(uploadErrTimerRef.current); }, []);
 
@@ -49,8 +52,6 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
     setUploading(true);
     clearTimeout(uploadErrTimerRef.current);
     setUploadErr("");
-    // Sequential upload: check gen inside loop so a cancel mid-upload
-    // immediately cleans up already-uploaded Storage objects.
     const added = [];
     try {
       for (const f of valid) {
@@ -79,33 +80,21 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
     }
   };
 
-  const saveVisita = () => {
-    if (!form.date || uploading) return;
-    clearTimeout(uploadErrTimerRef.current);
-    setUploadErr("");
-    const v = {
-      id: `v-${crypto.randomUUID()}`,
-      date: form.date,
-      time: form.time,
-      quien: form.quien.trim(),
-      observaciones: form.observaciones.trim(),
-      photos: formPhotos,
-      createdAt: Date.now(),
-    };
-    setDraft(d => ({ ...d, visitas: [...(d.visitas ?? []), v] }));
-    setForm(freshForm());
-    setFormPhotos([]);
-    setAdding(false);
-  };
-
-  const cancel = () => {
+  const openEdit = visita => {
     genRef.current++;
-    // Cleanup any photos already uploaded to Storage for this discarded form
-    const paths = formPhotos.map(p => p.storagePath).filter(Boolean);
-    if (paths.length) storage.remove(paths).catch(console.error);
-    setAdding(false);
-    setForm(freshForm());
-    setFormPhotos([]);
+    // Si había un formulario abierto con fotos nuevas, borrarlas de Storage
+    const orphanPaths = formPhotos
+      .filter(p => !editOriginalIdsRef.current.has(p.id))
+      .map(p => p.storagePath).filter(Boolean);
+    if (orphanPaths.length) storage.remove(orphanPaths).catch(console.error);
+
+    editOriginalIdsRef.current = new Set((visita.photos ?? []).map(p => p.id));
+    pendingDeletesRef.current = [];
+
+    setEditingId(visita.id);
+    setForm({ date: visita.date, time: visita.time || "", quien: visita.quien || "", observaciones: visita.observaciones || "" });
+    setFormPhotos(visita.photos ?? []);
+    setAdding(true);
     clearTimeout(uploadErrTimerRef.current);
     setUploadErr("");
   };
@@ -113,7 +102,74 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
   const removeFormPhoto = id => {
     const ph = formPhotos.find(p => p.id === id);
     setFormPhotos(prev => prev.filter(p => p.id !== id));
-    if (ph?.storagePath) storage.remove([ph.storagePath]).catch(console.error);
+    if (editingId) {
+      // En modo edición: fotos originales se eliminan al guardar; fotos nuevas se borran ya
+      if (editOriginalIdsRef.current.has(id)) {
+        if (ph?.storagePath) pendingDeletesRef.current.push(ph.storagePath);
+      } else {
+        if (ph?.storagePath) storage.remove([ph.storagePath]).catch(console.error);
+      }
+    } else {
+      if (ph?.storagePath) storage.remove([ph.storagePath]).catch(console.error);
+    }
+  };
+
+  const saveVisita = () => {
+    if (!form.date || uploading) return;
+    clearTimeout(uploadErrTimerRef.current);
+    setUploadErr("");
+    if (editingId) {
+      if (pendingDeletesRef.current.length) {
+        storage.remove(pendingDeletesRef.current).catch(console.error);
+      }
+      setDraft(d => ({
+        ...d,
+        visitas: (d.visitas ?? []).map(v =>
+          v.id === editingId
+            ? { ...v, date: form.date, time: form.time, quien: form.quien.trim(), observaciones: form.observaciones.trim(), photos: formPhotos }
+            : v
+        ),
+      }));
+      pendingDeletesRef.current = [];
+      editOriginalIdsRef.current = new Set();
+    } else {
+      const v = {
+        id: `v-${crypto.randomUUID()}`,
+        date: form.date,
+        time: form.time,
+        quien: form.quien.trim(),
+        observaciones: form.observaciones.trim(),
+        photos: formPhotos,
+        createdAt: Date.now(),
+      };
+      setDraft(d => ({ ...d, visitas: [...(d.visitas ?? []), v] }));
+    }
+    setForm(freshForm());
+    setFormPhotos([]);
+    setAdding(false);
+    setEditingId(null);
+  };
+
+  const cancel = () => {
+    genRef.current++;
+    if (editingId) {
+      // Borrar solo las fotos NUEVAS subidas durante esta edición (no las originales)
+      const newPaths = formPhotos
+        .filter(p => !editOriginalIdsRef.current.has(p.id))
+        .map(p => p.storagePath).filter(Boolean);
+      if (newPaths.length) storage.remove(newPaths).catch(console.error);
+      pendingDeletesRef.current = [];
+      editOriginalIdsRef.current = new Set();
+    } else {
+      const paths = formPhotos.map(p => p.storagePath).filter(Boolean);
+      if (paths.length) storage.remove(paths).catch(console.error);
+    }
+    setAdding(false);
+    setEditingId(null);
+    setForm(freshForm());
+    setFormPhotos([]);
+    clearTimeout(uploadErrTimerRef.current);
+    setUploadErr("");
   };
 
   const removeVisita = id => {
@@ -136,7 +192,7 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
 
       {adding && (
         <Card style={{ padding: 18 }}>
-          <SecLabel>Registrar visita</SecLabel>
+          <SecLabel>{editingId ? "Editar visita" : "Registrar visita"}</SecLabel>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
             <div><Lbl>Fecha *</Lbl><Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></div>
@@ -163,7 +219,7 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
               onClick={e => { if (uploading) e.preventDefault(); }}
               style={{ display: "block", padding: "14px 16px", textAlign: "center", cursor: uploading ? "wait" : "pointer", background: "var(--bg-soft)", border: "1.5px dashed var(--bd-strong)", borderRadius: 10, opacity: uploading ? .7 : 1, transition: "border-color .15s" }}>
               <div style={{ fontSize: 12, color: "var(--tx-3)" }}>
-                {uploading ? "Procesando fotos…" : "Arrastra imágenes o haz clic · JPG, PNG, WEBP"}
+                {uploading ? "Subiendo fotos…" : "Arrastra imágenes o haz clic · JPG, PNG, WEBP"}
               </div>
               <input type="file" multiple accept="image/*" style={{ display: "none" }}
                 onChange={e => { uploadPhotos(e.target.files); e.target.value = ""; }} />
@@ -185,7 +241,7 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
           </div>
 
           <div style={fx({ gap: 8 })}>
-            <Btn variant="primary" size="sm" onClick={saveVisita} disabled={!form.date || uploading}>Guardar visita</Btn>
+            <Btn variant="primary" size="sm" onClick={saveVisita} disabled={!form.date || uploading}>{editingId ? "Guardar cambios" : "Guardar visita"}</Btn>
             <Btn variant="text" size="sm" onClick={cancel}>Cancelar</Btn>
           </div>
         </Card>
@@ -197,13 +253,13 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
       )}
 
       {sorted.map(v => (
-        <VisitaCard key={v.id} visita={v} readOnly={readOnly} onRemove={() => removeVisita(v.id)} />
+        <VisitaCard key={v.id} visita={v} readOnly={readOnly} onRemove={() => removeVisita(v.id)} onEdit={() => openEdit(v)} />
       ))}
     </div>
   );
 }
 
-function VisitaCard({ visita, readOnly, onRemove }) {
+function VisitaCard({ visita, readOnly, onRemove, onEdit }) {
   const photos = visita.photos ?? [];
   const [lightbox, setLightbox] = useState(null);
   const hasBody = visita.observaciones || photos.length > 0;
@@ -244,6 +300,7 @@ function VisitaCard({ visita, readOnly, onRemove }) {
               <I.Camera size={10} />{photos.length}
             </span>
           )}
+          {!readOnly && <IconBtn icon={<I.PenLine size={13} />} onClick={onEdit} title="Editar visita" />}
           {!readOnly && <IconBtn icon={<I.Trash size={13} />} onClick={onRemove} title="Eliminar visita" danger />}
         </div>
       </div>
