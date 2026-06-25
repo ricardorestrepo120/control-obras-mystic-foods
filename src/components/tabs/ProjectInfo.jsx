@@ -26,6 +26,11 @@ export default function ProjectInfo({ draft, isNew, upd, contactForm, setContact
         <div style={fx({ flexWrap: "wrap", gap: 12, marginTop: 10 })}>
           {draft.localNumber && <span style={{ fontSize: 13, color: "var(--tx-2)" }}>{draft.localNumber}{draft.localArea ? ` · ${draft.localArea}` : ""}</span>}
           <Pill token={STATUS_TOKEN[draft.status]} dot>{draft.status}</Pill>
+          {draft.startDate && (
+            <span style={fx({ gap: 6, fontSize: 13, color: "var(--tx-2)" })}>
+              <I.Calendar size={14} /> Inicio {fmtDateLong(draft.startDate)}
+            </span>
+          )}
           {draft.deliveryDate && (
             <span style={fx({ gap: 6, fontSize: 13, color: "var(--tx-2)" })}>
               <I.Calendar size={14} /> Entrega {fmtDateLong(draft.deliveryDate)}<DaysChip date={draft.deliveryDate} />
@@ -74,6 +79,28 @@ export default function ProjectInfo({ draft, isNew, upd, contactForm, setContact
             <div><Lbl>Entrega de obra</Lbl><Input type="date" value={draft.deliveryDate || ""} onChange={e => upd("deliveryDate", e.target.value)} /></div>
             <div><Lbl>Apertura</Lbl><Input type="date" value={draft.openingDate || ""} onChange={e => upd("openingDate", e.target.value)} /></div>
           </div>
+          {(draft.startDate || draft.deliveryDate || draft.openingDate) && (
+            <div style={col({ gap: 0, marginBottom: 12, border: "1px solid var(--bd)", borderRadius: 8, overflow: "hidden" })}>
+              {draft.startDate && (
+                <div style={fx({ justifyContent: "space-between", padding: "8px 12px", borderBottom: (draft.deliveryDate || draft.openingDate) ? "1px solid var(--bd)" : "none", background: "var(--bg-soft)" })}>
+                  <span style={{ fontSize: 12, color: "var(--tx-3)" }}>Inicio de obra</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--tx)" }}>{fmtDateLong(draft.startDate)}</span>
+                </div>
+              )}
+              {draft.deliveryDate && (
+                <div style={fx({ justifyContent: "space-between", padding: "8px 12px", borderBottom: draft.openingDate ? "1px solid var(--bd)" : "none", background: "var(--bg-soft)" })}>
+                  <span style={{ fontSize: 12, color: "var(--tx-3)" }}>Entrega de obra</span>
+                  <span style={fx({ gap: 8, fontSize: 12, fontWeight: 600, color: "var(--tx)" })}>{fmtDateLong(draft.deliveryDate)}<DaysChip date={draft.deliveryDate} /></span>
+                </div>
+              )}
+              {draft.openingDate && (
+                <div style={fx({ justifyContent: "space-between", padding: "8px 12px", background: "var(--bg-soft)" })}>
+                  <span style={{ fontSize: 12, color: "var(--tx-3)" }}>Apertura</span>
+                  <span style={fx({ gap: 8, fontSize: 12, fontWeight: 600, color: "var(--tx)" })}>{fmtDateLong(draft.openingDate)}<DaysChip date={draft.openingDate} /></span>
+                </div>
+              )}
+            </div>
+          )}
           {draft.startDate && draft.openingDate && <TimelineMini start={draft.startDate} end={draft.openingDate} />}
         </Card>
       </div>
