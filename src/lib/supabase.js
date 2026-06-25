@@ -38,6 +38,10 @@ export const storage = {
   // Uses atob() instead of fetch(dataUrl) — some desktop browsers block
   // fetch() on data: URLs due to CSP restrictions.
   async upload(dataUrl, projectId, photoId) {
+    // ── Diagnostic: log token type so we can catch anon-key-instead-of-JWT bugs
+    const tokenType = _tok === SB_KEY ? '⚠ ANON KEY (upload will fail if RLS requires authenticated)' : `JWT (…${_tok.slice(-8)})`;
+    console.log(`[storage.upload] 🔑 token: ${tokenType}`);
+
     // ── Step 1: data URL → Blob ──────────────────────────────────────────
     let blob;
     try {
@@ -49,18 +53,23 @@ export const storage = {
       const buf  = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
       blob = new Blob([buf], { type: mime });
+      console.log(`[storage.upload] blob listo — tipo=${mime} tamaño=${blob.size}B`);
     } catch (err) {
       console.error('[storage.upload] error creando blob:', err);
       throw new Error(`Error creando blob: ${err.message}`);
     }
 
-    // ── Step 2: POST al bucket ──────────────────────────────────────────
+    // ── Step 2: PUT al bucket (upsert) ──────────────────────────────────
+    // PUT + x-upsert:true is the correct verb for Supabase Storage upsert;
+    // POST also works on new files but some RLS policies reject it on re-upload.
     const path = `${projectId}/${photoId}.jpg`;
+    const uploadUrl = `${SB_URL}/storage/v1/object/${BUCKET}/${path}`;
+    console.log(`[storage.upload] PUT ${uploadUrl}`);
 
     let r;
     try {
       r = await storageFetch(`/object/${BUCKET}/${path}`, {
-        method: "POST",
+        method: "PUT",
         headers: { "Content-Type": blob.type, "x-upsert": "true" },
         body: blob,
       });
@@ -71,23 +80,35 @@ export const storage = {
 
     if (!r.ok) {
       const body = await r.text().catch(() => '');
-      console.error(`[storage.upload] HTTP ${r.status} — ${BUCKET}/${path}:`, body);
+      console.error(`[storage.upload] ❌ HTTP ${r.status} — ${BUCKET}/${path}:`, body);
+      // Surface a human-readable message based on status
+      if (r.status === 400) throw new Error(`Storage 400 — request inválido: ${body}`);
+      if (r.status === 401) throw new Error('Storage 401 — no autenticado. Vuelve a iniciar sesión.');
+      if (r.status === 403) throw new Error('Storage 403 — acceso denegado. Verifica las políticas RLS del bucket "obras-fotos".');
+      if (r.status === 404) throw new Error('Storage 404 — bucket "obras-fotos" no encontrado. Créalo en el dashboard de Supabase.');
       throw new Error(`Storage ${r.status}: ${body || r.statusText}`);
     }
 
+    console.log(`[storage.upload] ✅ subido: ${path}`);
     return `${SB_URL}/storage/v1/object/public/${BUCKET}/${path}`;
   },
 
-  // Deletes objects by their storage paths. Best-effort — never throws.
+  // Deletes objects by their storage paths. Best-effort — logs but never throws.
   async remove(paths) {
     if (!paths?.length) return;
     try {
-      await storageFetch(`/object/${BUCKET}`, {
+      const r = await storageFetch(`/object/${BUCKET}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prefixes: paths }),
       });
-    } catch {}
+      if (!r.ok) {
+        const body = await r.text().catch(() => '');
+        console.warn(`[storage.remove] HTTP ${r.status}:`, body);
+      }
+    } catch (err) {
+      console.warn('[storage.remove] error:', err);
+    }
   },
 };
 

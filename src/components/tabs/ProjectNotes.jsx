@@ -21,6 +21,7 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formUploading, setFormUploading] = useState(false);
+  const [formUploadError, setFormUploadError] = useState("");
   const formFileRef = useRef(null);
   const [filter, setFilter] = useState("all");
   const assignees = useMemo(() => [...new Set(list.map(x => x.assignee).filter(Boolean))].sort(), [list]);
@@ -36,6 +37,7 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
     const valid = Array.from(files).filter(f => f.type.startsWith("image/"));
     if (!valid.length) return;
     setFormUploading(true);
+    setFormUploadError("");
     const newPhotos = [];
     try {
       for (const f of valid) {
@@ -48,6 +50,7 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
     } catch (e) {
       console.error("[notes-form] ❌ upload error:", e);
       if (newPhotos.length) storage.remove(newPhotos.map(p => p.storagePath)).catch(console.error);
+      setFormUploadError(e.message);
     } finally {
       setFormUploading(false);
     }
@@ -119,6 +122,12 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
             </div>
             <div style={{ marginTop: 10 }}>
               <Lbl>Fotos</Lbl>
+              {formUploadError && (
+                <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 500, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                  <span>⚠ {formUploadError}</span>
+                  <button onClick={() => setFormUploadError("")} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 14, lineHeight: 1, flexShrink: 0 }}>✕</button>
+                </div>
+              )}
               <input ref={formFileRef} type="file" multiple accept="image/*" style={{ display: "none" }} onChange={e => { uploadFormPhotos(e.target.files); e.target.value = ""; }} />
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start" }}>
                 {form.photos.map(ph => (
@@ -139,7 +148,7 @@ export default function ProjectNotes({ draft, upd, readOnly = false }) {
               <Btn variant="text" size="sm" onClick={() => {
                 const paths = form.photos.map(p => p.storagePath).filter(Boolean);
                 if (paths.length) storage.remove(paths).catch(console.error);
-                setAdding(false); setForm(EMPTY_FORM);
+                setAdding(false); setForm(EMPTY_FORM); setFormUploadError("");
               }}>Cancelar</Btn>
             </div>
           </div>
@@ -159,6 +168,7 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false, 
   const [editRem,  setEditRem]  = useState(false);
   const [editAsgn, setEditAsgn] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const [lightbox, setLightbox] = useState(null);
   const fileInputRef = useRef(null);
   const due = item.reminder?.date ? daysUntil(item.reminder.date) : null;
@@ -171,6 +181,7 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false, 
     const valid = Array.from(files).filter(f => f.type.startsWith("image/"));
     if (!valid.length) return;
     setUploading(true);
+    setUploadError("");
     const newPhotos = [];
     try {
       for (const f of valid) {
@@ -183,6 +194,7 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false, 
     } catch (e) {
       console.error("[notes-row] ❌ upload error:", e);
       if (newPhotos.length) storage.remove(newPhotos.map(p => p.storagePath)).catch(console.error);
+      setUploadError(e.message);
     } finally {
       setUploading(false);
     }
@@ -287,6 +299,12 @@ function ChecklistRow({ item, suggestions, onPatch, onRemove, readOnly = false, 
             onBlur={e  => { e.currentTarget.style.borderColor = "var(--bd)"; }}
           />
           <input ref={fileInputRef} type="file" multiple accept="image/*" style={{ display: "none" }} onChange={e => { uploadPhotos(e.target.files); e.target.value = ""; }} />
+          {uploadError && (
+            <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "7px 10px", fontSize: 11, fontWeight: 500, marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
+              <span>⚠ {uploadError}</span>
+              <button onClick={() => setUploadError("")} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 13, lineHeight: 1, flexShrink: 0 }}>✕</button>
+            </div>
+          )}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start" }}>
             {photos.map((ph, idx) => (
               <div key={ph.id} style={{ position: "relative", width: 88, height: 66, borderRadius: 8, overflow: "hidden", flexShrink: 0, border: "1px solid var(--bd)" }}>
