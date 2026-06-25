@@ -38,10 +38,6 @@ export const storage = {
   // Uses atob() instead of fetch(dataUrl) — some desktop browsers block
   // fetch() on data: URLs due to CSP restrictions.
   async upload(dataUrl, projectId, photoId) {
-    // ── Diagnostic: log token type so we can catch anon-key-instead-of-JWT bugs
-    const tokenType = _tok === SB_KEY ? '⚠ ANON KEY (upload will fail if RLS requires authenticated)' : `JWT (…${_tok.slice(-8)})`;
-    console.log(`[storage.upload] 🔑 token: ${tokenType}`);
-
     // ── Step 1: data URL → Blob ──────────────────────────────────────────
     let blob;
     try {
@@ -53,7 +49,6 @@ export const storage = {
       const buf  = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
       blob = new Blob([buf], { type: mime });
-      console.log(`[storage.upload] blob listo — tipo=${mime} tamaño=${blob.size}B`);
     } catch (err) {
       console.error('[storage.upload] error creando blob:', err);
       throw new Error(`Error creando blob: ${err.message}`);
@@ -63,8 +58,6 @@ export const storage = {
     // PUT + x-upsert:true is the correct verb for Supabase Storage upsert;
     // POST also works on new files but some RLS policies reject it on re-upload.
     const path = `${projectId}/${photoId}.jpg`;
-    const uploadUrl = `${SB_URL}/storage/v1/object/${BUCKET}/${path}`;
-    console.log(`[storage.upload] PUT ${uploadUrl}`);
 
     let r;
     try {
@@ -89,7 +82,6 @@ export const storage = {
       throw new Error(`Storage ${r.status}: ${body || r.statusText}`);
     }
 
-    console.log(`[storage.upload] ✅ subido: ${path}`);
     return `${SB_URL}/storage/v1/object/public/${BUCKET}/${path}`;
   },
 
@@ -197,7 +189,7 @@ export const auth = {
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
       const body = await r.json();
-      if (!r.ok) { localStorage.removeItem(SESSION_KEY); setAuthToken(null); return null; }
+      if (!r.ok || !body.access_token) { localStorage.removeItem(SESSION_KEY); setAuthToken(null); return null; }
       return auth._persist({
         access_token:  body.access_token,
         refresh_token: body.refresh_token,
@@ -212,7 +204,7 @@ export const auth = {
   },
 
   _persist(session) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch { /* private mode quota */ }
     setAuthToken(session.access_token);
     return session;
   },

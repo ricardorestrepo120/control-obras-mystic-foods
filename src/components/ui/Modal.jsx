@@ -1,11 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export default function Modal({ children, onClose, width = 420 }) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
-    const onKey = e => { if (e.key === "Escape") onClose(); };
+    const onKey = e => { if (e.key === "Escape") onCloseRef.current(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, []);
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>

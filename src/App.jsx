@@ -45,7 +45,10 @@ export default function App() {
     setDraft(null);
     setIsNew(false);
     setRoute({ view: "dash" });
+    setFilter("all");
     setArchiveView("active");
+    setSortBy("createdAt");
+    setQuery("");
     setDelModal(null);
     setArchiveModal(null);
     setShareOpen(false);

@@ -176,7 +176,7 @@ export default function ProjectBitacora({ draft, setDraft, readOnly = false }) {
       {!readOnly && !adding && (
         <div style={fx({ justifyContent: "flex-end" })}>
           <Btn variant="primary" size="sm" icon={<I.Plus size={13} />}
-            onClick={() => { setForm(freshForm()); setAdding(true); }}>
+            onClick={() => { setForm(freshForm()); setFormPhotos([]); setUploadErr(""); setAdding(true); }}>
             Nueva visita
           </Btn>
         </div>
