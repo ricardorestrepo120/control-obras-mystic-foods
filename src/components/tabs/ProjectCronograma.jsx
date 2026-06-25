@@ -10,7 +10,7 @@ const ESTADOS  = ['Pendiente', 'En progreso', 'Completada'];
 const MAX_DAYS = 60;
 const DAY_W    = 30;                // px per day column
 const BAR_W    = MAX_DAYS * DAY_W; // 1800 px total scrollable area
-const NAME_W   = 152;              // px — sticky left column
+const NAME_W   = 210;              // px — sticky left column
 const STATE_W  = 108;              // px — sticky right column
 
 const ESTATE = {
@@ -302,7 +302,7 @@ function GanttRow({ fase, dias, startPx, widthPx, readOnly, isLast, onPatch, onR
         ) : (
           <div
             onClick={() => !readOnly && setEditName(true)}
-            title={!readOnly ? 'Clic para editar' : undefined}
+            title={fase.nombre || '—'}
             style={{
               fontSize: 13, fontWeight: 600, color: 'var(--tx)',
               cursor: readOnly ? 'default' : 'text',
